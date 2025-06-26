@@ -7,7 +7,7 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 import yaml  # type: ignore
 
 from .models import QueuedPrompt, QueueState, PromptStatus
@@ -23,7 +23,6 @@ class MarkdownPromptParser:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Split frontmatter and content
             if content.startswith("---\n"):
                 parts = content.split("---\n", 2)
                 if len(parts) >= 3:
@@ -36,7 +35,6 @@ class MarkdownPromptParser:
                 frontmatter = ""
                 markdown_content = content
 
-            # Parse frontmatter
             metadata: dict = {}
             if frontmatter.strip():
                 try:
@@ -44,14 +42,12 @@ class MarkdownPromptParser:
                 except yaml.YAMLError:
                     metadata = {}
 
-            # Extract prompt ID from filename
             prompt_id = (
                 file_path.stem.split("-", 1)[0]
                 if "-" in file_path.stem
                 else file_path.stem
             )
 
-            # Create QueuedPrompt
             prompt = QueuedPrompt(
                 id=prompt_id,
                 content=markdown_content,
@@ -73,7 +69,6 @@ class MarkdownPromptParser:
     def write_prompt_file(prompt: QueuedPrompt, file_path: Path) -> bool:
         """Write a QueuedPrompt to a markdown file."""
         try:
-            # Prepare frontmatter
             metadata = {
                 "priority": prompt.priority,
                 "working_directory": prompt.working_directory,
@@ -94,7 +89,6 @@ class MarkdownPromptParser:
             if prompt.reset_time:
                 metadata["reset_time"] = prompt.reset_time.isoformat()
 
-            # Write file
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("---\n")
                 yaml.dump(metadata, f, default_flow_style=False)
@@ -130,7 +124,6 @@ class QueueStorage:
         self.failed_dir = self.base_dir / "failed"
         self.state_file = self.base_dir / "queue-state.json"
 
-        # Create directories
         for dir_path in [self.queue_dir, self.completed_dir, self.failed_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -140,7 +133,6 @@ class QueueStorage:
         """Load queue state from storage."""
         state = QueueState()
 
-        # Load state metadata
         if self.state_file.exists():
             try:
                 with open(self.state_file, "r") as f:
@@ -158,7 +150,6 @@ class QueueStorage:
             except Exception as e:
                 print(f"Error loading queue state: {e}")
 
-        # Load prompts from markdown files
         state.prompts = self._load_prompts_from_files()
 
         return state
@@ -166,10 +157,8 @@ class QueueStorage:
     def save_queue_state(self, state: QueueState) -> bool:
         """Save queue state to storage."""
         try:
-            # Save prompts to markdown files
             self._save_prompts_to_files(state.prompts)
 
-            # Save state metadata
             state_data = {
                 "total_processed": state.total_processed,
                 "failed_count": state.failed_count,
@@ -194,7 +183,6 @@ class QueueStorage:
         prompts = []
         processed_ids = set()
 
-        # Load executing/rate-limited prompts first (they stay in queue dir)
         for file_path in self.queue_dir.glob("*.executing.md"):
             prompt = self.parser.parse_prompt_file(file_path)
             if prompt:
@@ -209,9 +197,7 @@ class QueueStorage:
                 prompts.append(prompt)
                 processed_ids.add(prompt.id)
 
-        # Load from queue directory - exclude files that start with #
         for file_path in self.queue_dir.glob("*.md"):
-            # Skip special status files and processed files
             if (
                 file_path.name.endswith(".executing.md")
                 or file_path.name.endswith(".rate-limited.md")
@@ -234,7 +220,6 @@ class QueueStorage:
     def _save_single_prompt(self, prompt: QueuedPrompt) -> bool:
         """Save a single prompt to the appropriate location."""
         try:
-            # Always start from the base filename (id and title, no status suffix)
             base_filename = MarkdownPromptParser.get_base_filename(prompt)
             if prompt.status == PromptStatus.COMPLETED:
                 target_dir = self.completed_dir
@@ -264,14 +249,9 @@ class QueueStorage:
 
     def _remove_prompt_files(self, prompt_id: str, directory: Path) -> None:
         """Remove all files for a prompt ID from a directory, including any status suffixes."""
-        # Remove any file that starts with the prompt_id and has .md, .executing.md, .rate-limited.md, or -cancelled.md
         patterns = [
-            f"{prompt_id}-*.md",
-            f"{prompt_id}-*.executing.md",
-            f"{prompt_id}-*.rate-limited.md",
-            f"{prompt_id}-cancelled.md",
-            f"{prompt_id}.executing.md",
-            f"{prompt_id}.rate-limited.md",
+            f"{prompt_id}.md",
+            f"{prompt_id}*.md",
         ]
         for pattern in patterns:
             for file_path in directory.glob(pattern):
@@ -279,7 +259,6 @@ class QueueStorage:
                     file_path.unlink()
                 except Exception as e:
                     print(f"Error removing file {file_path}: {e}")
-        # Also remove any files that start with the prompt_id and contain #
         for file_path in directory.glob(f"{prompt_id}-#*.md"):
             try:
                 file_path.unlink()
@@ -301,7 +280,6 @@ class QueueStorage:
         """Add a prompt from an existing markdown file."""
         prompt = self.parser.parse_prompt_file(file_path)
         if prompt:
-            # Move file to queue directory if it's not already there
             if file_path.parent != self.queue_dir:
                 new_path = self.queue_dir / file_path.name
                 shutil.move(str(file_path), str(new_path))
