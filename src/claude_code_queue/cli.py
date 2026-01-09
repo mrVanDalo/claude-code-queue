@@ -28,6 +28,15 @@ Examples:
   # Create a template for detailed prompt
   python -m claude_code_queue.cli template my-feature --priority 2
 
+  # Save a reusable template to bank
+  python -m claude_code_queue.cli bank save update-docs --priority 1
+
+  # List templates in bank
+  python -m claude_code_queue.cli bank list
+
+  # Use a template from bank (adds to queue)
+  python -m claude_code_queue.cli bank use update-docs
+
   # Check queue status
   python -m claude_code_queue.cli status
 
@@ -121,6 +130,25 @@ Examples:
 
     test_parser = subparsers.add_parser("test", help="Test Claude Code connection")
 
+    # Bank subcommands
+    bank_parser = subparsers.add_parser("bank", help="Manage prompt templates bank")
+    bank_subparsers = bank_parser.add_subparsers(dest="bank_command", help="Bank operations")
+
+    bank_save_parser = bank_subparsers.add_parser("save", help="Save a template to bank")
+    bank_save_parser.add_argument("template_name", help="Template name for bank")
+    bank_save_parser.add_argument(
+        "--priority", "-p", type=int, default=0, help="Default priority"
+    )
+
+    bank_list_parser = bank_subparsers.add_parser("list", help="List templates in bank")
+    bank_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    bank_use_parser = bank_subparsers.add_parser("use", help="Use template from bank")
+    bank_use_parser.add_argument("template_name", help="Template name to use")
+
+    bank_delete_parser = bank_subparsers.add_parser("delete", help="Delete template from bank")
+    bank_delete_parser.add_argument("template_name", help="Template name to delete")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -149,6 +177,8 @@ Examples:
             return cmd_list(manager, args)
         elif args.command == "test":
             return cmd_test(manager, args)
+        elif args.command == "bank":
+            return cmd_bank(manager, args)
         else:
             print(f"Unknown command: {args.command}")
             return 1
@@ -316,3 +346,75 @@ def cmd_test(manager: QueueManager, args) -> int:
     is_working, message = manager.claude_interface.test_connection()
     print(message)
     return 0 if is_working else 1
+
+
+def cmd_bank(manager: QueueManager, args) -> int:
+    """Handle bank subcommands."""
+    if not args.bank_command:
+        print("Error: No bank operation specified")
+        print("Available operations: save, list, use, delete")
+        return 1
+
+    if args.bank_command == "save":
+        return cmd_bank_save(manager, args)
+    elif args.bank_command == "list":
+        return cmd_bank_list(manager, args)
+    elif args.bank_command == "use":
+        return cmd_bank_use(manager, args)
+    elif args.bank_command == "delete":
+        return cmd_bank_delete(manager, args)
+    else:
+        print(f"Unknown bank operation: {args.bank_command}")
+        return 1
+
+
+def cmd_bank_save(manager: QueueManager, args) -> int:
+    """Save a template to the bank."""
+    file_path = manager.save_prompt_to_bank(args.template_name, args.priority)
+    print(f"✓ Created template in bank: {file_path}")
+    print(f"Edit {file_path} to customize your template")
+    return 0
+
+
+def cmd_bank_list(manager: QueueManager, args) -> int:
+    """List templates in the bank."""
+    templates = manager.list_bank_templates()
+    
+    if args.json:
+        print(json.dumps(templates, indent=2, default=str))
+        return 0
+    
+    if not templates:
+        print("No templates found in bank")
+        return 0
+    
+    print(f"Found {len(templates)} template(s) in bank:")
+    print("-" * 80)
+    
+    for template in templates:
+        print(f"📄 {template['name']}")
+        print(f"   Title: {template['title']}")
+        print(f"   Priority: {template['priority']}")
+        print(f"   Working directory: {template['working_directory']}")
+        if template['estimated_tokens']:
+            print(f"   Estimated tokens: {template['estimated_tokens']}")
+        print(f"   Modified: {template['modified'].strftime('%Y-%m-%d %H:%M:%S')}")
+        print()
+    
+    return 0
+
+
+def cmd_bank_use(manager: QueueManager, args) -> int:
+    """Use a template from the bank."""
+    success = manager.use_bank_template(args.template_name)
+    return 0 if success else 1
+
+
+def cmd_bank_delete(manager: QueueManager, args) -> int:
+    """Delete a template from the bank."""
+    success = manager.delete_bank_template(args.template_name)
+    return 0 if success else 1
+
+
+if __name__ == "__main__":
+    main()

@@ -295,6 +295,49 @@ class QueueManager:
         file_path = self.storage.create_prompt_template(filename, priority)
         return str(file_path)
 
+    def save_prompt_to_bank(self, template_name: str, priority: int = 0) -> str:
+        """Save a prompt template to the bank."""
+        file_path = self.storage.save_prompt_to_bank(template_name, priority)
+        return str(file_path)
+
+    def list_bank_templates(self) -> list:
+        """List all templates in the bank."""
+        return self.storage.list_bank_templates()
+
+    def use_bank_template(self, template_name: str) -> bool:
+        """Use a template from the bank by copying it to the queue."""
+        try:
+            prompt = self.storage.use_bank_template(template_name)
+            if not prompt:
+                print(f"Template '{template_name}' not found in bank")
+                return False
+
+            if not self.state:
+                self.state = self.storage.load_queue_state()
+
+            self.state.add_prompt(prompt)
+            success = self.storage.save_queue_state(self.state)
+            
+            if success:
+                print(f"✓ Added prompt {prompt.id} from template '{template_name}' to queue")
+            else:
+                print(f"✗ Failed to save prompt from template '{template_name}'")
+            
+            return success
+
+        except Exception as e:
+            print(f"Error using bank template '{template_name}': {e}")
+            return False
+
+    def delete_bank_template(self, template_name: str) -> bool:
+        """Delete a template from the bank."""
+        success = self.storage.delete_bank_template(template_name)
+        if success:
+            print(f"✓ Deleted template '{template_name}' from bank")
+        else:
+            print(f"✗ Template '{template_name}' not found in bank")
+        return success
+
     def get_rate_limit_info(self) -> Dict[str, Any]:
         """Get basic rate limit information for testing."""
         if not self.state:

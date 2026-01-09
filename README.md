@@ -9,6 +9,7 @@ A tool to queue Claude Code prompts and automatically execute them when token li
 -   **Priority System**: Execute high-priority prompts first
 -   **Retry Logic**: Automatically retry failed prompts
 -   **Persistent Storage**: Queue survives system restarts
+-   **Prompt Bank**: Save and reuse templates for recurring tasks
 -   **CLI Interface**: Simple command-line interface
 
 ## Installation
@@ -126,6 +127,83 @@ claude-queue start
 claude-queue start --verbose
 ```
 
+## Prompt Bank (Template Management)
+
+The Prompt Bank allows you to save and reuse templates for recurring tasks like daily documentation updates, weekly reports, or standard maintenance tasks.
+
+### Saving Templates to Bank
+
+**Create a new template in the bank:**
+
+```bash
+claude-queue bank save update-docs --priority 1
+```
+
+This creates `~/.claude-queue/bank/update-docs.md` which you can edit:
+
+```markdown
+---
+priority: 1
+working_directory: /path/to/project
+context_files:
+  - README.md
+  - docs/
+max_retries: 3
+estimated_tokens: 1500
+---
+
+# Update Project Documentation
+
+Please review and update the project documentation:
+
+## Tasks
+1. Update README.md with latest features
+2. Check code examples are current
+3. Update API documentation
+4. Fix any broken links
+
+## Context
+This is the daily documentation review task.
+```
+
+### Managing Templates
+
+**List available templates:**
+
+```bash
+claude-queue bank list
+```
+
+**Use a template (adds to queue):**
+
+```bash
+claude-queue bank use update-docs
+```
+
+**Delete a template:**
+
+```bash
+claude-queue bank delete update-docs
+```
+
+### Typical Workflow for Recurring Tasks
+
+1. **One-time setup:**
+   ```bash
+   # Create and customize your template
+   claude-queue bank save daily-standup --priority 1
+   # Edit ~/.claude-queue/bank/daily-standup.md with your specific requirements
+   ```
+
+2. **Daily usage:**
+   ```bash
+   # Simply add to queue whenever needed
+   claude-queue bank use daily-standup
+   claude-queue start
+   ```
+
+This eliminates the need to recreate the same prompt structure every time!
+
 ## How It Works
 
 1. **Queue Processing**: Runs prompts in priority order (lower number = higher priority)
@@ -136,6 +214,7 @@ claude-queue start --verbose
     - `~/.claude-queue/queue/` - Pending prompts
     - `~/.claude-queue/completed/` - Successful executions
     - `~/.claude-queue/failed/` - Failed prompts
+    - `~/.claude-queue/bank/` - Saved template library
     - `~/.claude-queue/queue-state.json` - Queue metadata
 
 ## Configuration
@@ -179,6 +258,12 @@ claude-queue add "Run tests and fix any failures" --priority 1
 
 # Create template for complex prompt
 claude-queue template database-migration --priority 2
+
+# Save a reusable template
+claude-queue bank save update-docs --priority 1
+
+# Use a saved template
+claude-queue bank use update-docs
 
 # Start processing
 claude-queue start
@@ -269,5 +354,9 @@ claude-queue status --detailed
 │   └── 001-fix-bug-completed.md
 ├── failed/              # Failed prompts
 │   └── 003-failed-task.md
+├── bank/                # Saved template library
+│   ├── update-docs.md
+│   ├── daily-standup.md
+│   └── weekly-report.md
 └── queue-state.json     # Queue metadata
 ```
