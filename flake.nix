@@ -20,7 +20,7 @@
         let
           claude-code-queue = pkgs.python3Packages.buildPythonApplication rec {
             pname = "claude-code-queue";
-            version = "0.1.3";
+            version = "0.2.0";
             pyproject = true;
 
             src = pkgs.lib.fileset.toSource {
