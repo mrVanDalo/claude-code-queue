@@ -8,6 +8,16 @@ This project uses Nix flakes for reproducible builds and development environment
 
 This project must be built and tested using Nix only. Do not use pip install, pip install -e ., or any pip commands.
 
+## ⚠️ CRITICAL: ALWAYS RUN NIX FMT AT THE END OF EACH TASK
+
+**IMPORTANT: At the end of EVERY task that modifies code, you MUST run `nix fmt` to format all code.**
+
+This is a mandatory step. Never skip formatting. Always run:
+
+```bash
+nix fmt
+```
+
 ## Development Environment
 
 Always use the Nix development shell for working with this project:
