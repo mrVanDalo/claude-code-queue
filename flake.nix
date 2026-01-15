@@ -23,7 +23,15 @@
             version = "0.1.3";
             pyproject = true;
 
-            src = ./.;
+            src = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.unions [
+                ./pyproject.toml
+                ./README.md
+                ./requirements.txt
+                ./src
+              ];
+            };
 
             build-system = with pkgs.python3Packages; [
               setuptools

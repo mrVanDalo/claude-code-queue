@@ -18,5 +18,9 @@ dependencies = [
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["claude_code_queue*"]
+
 [project.scripts]
 claude-queue = "claude_code_queue.cli:main"
