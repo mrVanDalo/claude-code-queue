@@ -66,6 +66,42 @@ class QueueManager:
         finally:
             self._shutdown()
 
+    def process_next(
+        self, callback: Optional[Callable[[QueueState], None]] = None
+    ) -> int:
+        """Process only the next queue item and stop."""
+        print("Processing next queue item...")
+
+        is_working, message = self.claude_interface.test_connection()
+        if not is_working:
+            print(f"Error: {message}")
+            return 1
+
+        print(f"✓ {message}")
+
+        self.state = self.storage.load_queue_state()
+        print(f"✓ Loaded queue with {len(self.state.prompts)} prompts")
+
+        try:
+            self._process_queue_iteration(callback)
+            return 0
+
+        except KeyboardInterrupt:
+            print("\nInterrupted by user")
+            return 130
+        except Exception as e:
+            print(f"Error in queue processing: {e}")
+            return 1
+        finally:
+            if self.state:
+                for prompt in self.state.prompts:
+                    if prompt.status == PromptStatus.EXECUTING:
+                        prompt.status = PromptStatus.QUEUED
+                        prompt.add_log("Execution interrupted")
+
+                self.storage.save_queue_state(self.state)
+                print("✓ Queue state saved")
+
     def stop(self) -> None:
         """Stop the queue processing loop."""
         self.running = False

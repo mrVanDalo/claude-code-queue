@@ -82,6 +82,13 @@ Examples:
         "--verbose", "-v", action="store_true", help="Verbose output"
     )
 
+    next_parser = subparsers.add_parser(
+        "next", help="Process only the next queue item and stop"
+    )
+    next_parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Verbose output"
+    )
+
     add_parser = subparsers.add_parser("add", help="Add a prompt to the queue")
     add_parser.add_argument("prompt", help="The prompt text")
     add_parser.add_argument(
@@ -204,6 +211,8 @@ Examples:
 
         if args.command == "start":
             return cmd_start(manager, args)
+        elif args.command == "next":
+            return cmd_next(manager, args)
         elif args.command == "add":
             return cmd_add(manager, args)
         elif args.command == "template":
@@ -242,6 +251,17 @@ def cmd_start(manager: QueueManager, args) -> int:
 
     manager.start(callback=status_callback if args.verbose else None)
     return 0
+
+
+def cmd_next(manager: QueueManager, args) -> int:
+    """Process only the next queue item and stop."""
+
+    def status_callback(state):
+        if args.verbose:
+            stats = state.get_stats()
+            print(f"Queue status: {stats['status_counts']}")
+
+    return manager.process_next(callback=status_callback if args.verbose else None)
 
 
 def cmd_add(manager: QueueManager, args) -> int:
