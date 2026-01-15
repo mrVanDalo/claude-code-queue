@@ -51,6 +51,9 @@ class QueuedPrompt:
     permission_mode: Optional[str] = None  # "acceptEdits", "bypassPermissions", etc.
     allowed_tools: Optional[List[str]] = None  # ["Edit", "Write", "Bash(git:*)"]
     timeout: Optional[int] = None  # Per-prompt timeout override
+    model: Optional[str] = (
+        None  # Claude model to use: "sonnet" (default), "opus", "haiku"
+    )
 
     def __post_init__(self):
         """Validate permission_mode if provided."""

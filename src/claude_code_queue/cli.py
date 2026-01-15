@@ -125,6 +125,12 @@ Examples:
         dest="prompt_timeout",
         help="Timeout in seconds for this prompt (overrides global --timeout)",
     )
+    add_parser.add_argument(
+        "--model",
+        "-m",
+        choices=["sonnet", "opus", "haiku"],
+        help="Claude model to use (default: sonnet)",
+    )
 
     template_parser = subparsers.add_parser(
         "template", help="Create a prompt template file"
@@ -244,6 +250,7 @@ def cmd_add(manager: QueueManager, args) -> int:
         permission_mode=getattr(args, "permission_mode", None),
         allowed_tools=getattr(args, "allowed_tools", None),
         timeout=getattr(args, "prompt_timeout", None),
+        model=getattr(args, "model", None),
     )
 
     success = manager.add_prompt(prompt)

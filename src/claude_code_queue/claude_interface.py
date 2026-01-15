@@ -56,6 +56,10 @@ class ClaudeCodeInterface:
                 "--print",
             ]
 
+            # Add model if specified (default: sonnet)
+            model = prompt.model or "sonnet"
+            cmd.extend(["--model", model])
+
             # Add permission mode (default: acceptEdits)
             permission_mode = prompt.permission_mode or "acceptEdits"
             cmd.extend(["--permission-mode", permission_mode])

@@ -61,6 +61,7 @@ class MarkdownPromptParser:
                 permission_mode=metadata.get("permission_mode"),
                 allowed_tools=metadata.get("allowed_tools"),
                 timeout=metadata.get("timeout"),
+                model=metadata.get("model"),
             )
 
             return prompt
@@ -98,6 +99,8 @@ class MarkdownPromptParser:
                 metadata["allowed_tools"] = prompt.allowed_tools
             if prompt.timeout is not None:  # 0 is valid
                 metadata["timeout"] = prompt.timeout
+            if prompt.model:
+                metadata["model"] = prompt.model
 
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("---\n")
@@ -318,6 +321,8 @@ estimated_tokens: null
 # allowed_tools: []
 # Timeout in seconds (overrides global --timeout)
 # timeout: 3600
+# Model to use: sonnet (default), opus, haiku
+# model: sonnet
 ---
 
 # Prompt Title
@@ -351,6 +356,8 @@ estimated_tokens: null
 # allowed_tools: []
 # Timeout in seconds (overrides global --timeout)
 # timeout: 3600
+# Model to use: sonnet (default), opus, haiku
+# model: sonnet
 ---
 
 # {template_name.replace('-', ' ').replace('_', ' ').title()}
