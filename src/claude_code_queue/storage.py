@@ -501,3 +501,11 @@ What should be delivered...
         except Exception as e:
             print(f"Error deleting bank template {template_name}: {e}")
             return False
+
+    def get_prompt_path(self, prompt_id: str) -> Optional[Path]:
+        """Get the file path for a prompt by ID."""
+        # Search in all directories
+        for directory in [self.queue_dir, self.completed_dir, self.failed_dir]:
+            for file_path in directory.glob(f"{prompt_id}*.md"):
+                return file_path
+        return None

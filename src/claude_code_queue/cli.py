@@ -8,6 +8,7 @@ A tool to queue Claude Code prompts and automatically execute them when token li
 import argparse
 import json
 import os
+import sys
 from datetime import datetime
 
 from .models import PromptStatus, QueuedPrompt
@@ -170,6 +171,9 @@ Examples:
     retry_parser = subparsers.add_parser("retry", help="Retry a failed prompt")
     retry_parser.add_argument("prompt_id", help="Prompt ID to retry")
 
+    path_parser = subparsers.add_parser("path", help="Get the file path for a prompt")
+    path_parser.add_argument("prompt_id", help="Prompt ID")
+
     list_parser = subparsers.add_parser("list", help="List prompts")
     list_parser.add_argument(
         "--status", choices=[s.value for s in PromptStatus], help="Filter by status"
@@ -233,6 +237,8 @@ Examples:
             return cmd_delete(manager, args)
         elif args.command == "retry":
             return cmd_retry(manager, args)
+        elif args.command == "path":
+            return cmd_path(manager, args)
         elif args.command == "list":
             return cmd_list(manager, args)
         elif args.command == "test":
@@ -399,6 +405,35 @@ def cmd_retry(manager: QueueManager, args) -> int:
     """Retry a failed prompt by creating a new task with the same parameters."""
     success = manager.retry_prompt(args.prompt_id)
     return 0 if success else 1
+
+
+def cmd_path(manager: QueueManager, args) -> int:
+    """Get the file path for a prompt."""
+    # Handle special case: "next" returns the path of the next prompt to be processed
+    if args.prompt_id == "next":
+        next_prompt_id = manager.get_next_prompt_id()
+        if next_prompt_id:
+            file_path = manager.get_prompt_path(next_prompt_id)
+            if file_path:
+                print(file_path)
+                return 0
+            else:
+                print(
+                    f"Path not found for next prompt {next_prompt_id}", file=sys.stderr
+                )
+                return 1
+        else:
+            print("No prompts in queue", file=sys.stderr)
+            return 1
+
+    # Normal case: get path by prompt ID
+    file_path = manager.get_prompt_path(args.prompt_id)
+    if file_path:
+        print(file_path)
+        return 0
+    else:
+        print(f"Prompt {args.prompt_id} not found", file=sys.stderr)
+        return 1
 
 
 def cmd_list(manager: QueueManager, args) -> int:
