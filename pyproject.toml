@@ -9,7 +9,7 @@ description = "Queue Claude Code prompts and execute them when token limits rese
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
-  { name="Justin Cheah", email="justinwoody1234@gmail.com" }
+  { name="Ingolf Wagner", email="contact@ingolf-wagner.de" }
 ]
 dependencies = [
   # Add your dependencies here

@@ -31,13 +31,13 @@ If you're using Nix, you can install and run this project using the flake:
 
 ```bash
 # Run directly without installing
-nix run github:JCSnap/claude-code-queue
+nix run github:mrVanDalo/claude-code-queue
 
 # Or from local directory
 nix run .
 
 # Install to your profile
-nix profile install github:JCSnap/claude-code-queue
+nix profile install github:mrVanDalo/claude-code-queue
 
 # Enter development shell with all tools
 nix develop

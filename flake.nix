@@ -37,7 +37,7 @@
 
             meta = {
               description = "Queue Claude Code prompts and execute them when token limits reset";
-              homepage = "https://github.com/JCSnap/claude-code-queue";
+              homepage = "https://github.com/mrVanDalo/claude-code-queue";
               license = pkgs.lib.licenses.mit;
               maintainers = [ ];
               mainProgram = "claude-queue";
