@@ -33,6 +33,7 @@
                 ./shell-helpers.bash
                 ./shell-helpers.zsh
                 ./shell-helpers.fish
+                ./completions
               ];
             };
 
@@ -58,7 +59,7 @@
 
               # Install Zsh completions
               mkdir -p $out/share/zsh/site-functions
-              cp ${./shell-helpers.zsh} $out/share/zsh/site-functions/_claude-queue
+              cp ${./completions/_claude-queue} $out/share/zsh/site-functions/_claude-queue
 
               # Install Fish completions
               mkdir -p $out/share/fish/vendor_completions.d
