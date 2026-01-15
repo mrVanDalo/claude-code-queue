@@ -65,6 +65,7 @@
               # Development tools
               python3Packages.mypy
               python3Packages.pytest
+              python3Packages.pytest-cov
             ];
 
             shellHook = ''
