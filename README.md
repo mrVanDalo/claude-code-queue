@@ -53,6 +53,37 @@ For NixOS, add to your `configuration.nix`:
 }
 ```
 
+## Shell Helper Functions
+
+For a better user experience, claude-code-queue includes convenient shell helper functions for Bash, Zsh, and Fish shells. These provide quick shortcuts for common operations.
+
+**Quick installation:**
+
+After building with Nix, the shell helpers are available at:
+
+```bash
+# Bash
+source result/share/claude-code-queue/shell-helpers/shell-helpers.bash
+
+# Zsh
+source result/share/claude-code-queue/shell-helpers/shell-helpers.zsh
+
+# Fish
+source result/share/claude-code-queue/shell-helpers/shell-helpers.fish
+```
+
+**Example usage:**
+
+```bash
+cqa "Fix authentication bug" 1    # Quick add with priority
+cqs                                # Show status
+cqn                                # Process next item
+cqlf                               # List failed prompts
+cqhelp                             # Show all available functions
+```
+
+See [SHELL_HELPERS.md](SHELL_HELPERS.md) for complete documentation of all helper functions and shell completions.
+
 ## Quick Start
 
 After installation, use the `claude-queue` command:
