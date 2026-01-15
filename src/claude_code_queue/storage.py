@@ -70,6 +70,7 @@ class MarkdownPromptParser:
                 allowed_tools=metadata.get("allowed_tools"),
                 timeout=metadata.get("timeout"),
                 model=metadata.get("model"),
+                bookmark=metadata.get("bookmark"),
             )
 
             return prompt
@@ -105,6 +106,8 @@ class MarkdownPromptParser:
                 metadata["timeout"] = prompt.timeout
             if prompt.model:
                 metadata["model"] = prompt.model
+            if prompt.bookmark:
+                metadata["bookmark"] = prompt.bookmark
 
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("---\n")

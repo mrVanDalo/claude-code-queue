@@ -143,6 +143,11 @@ Examples:
         choices=["sonnet", "opus", "haiku"],
         help="Claude model to use (default: sonnet)",
     )
+    add_parser.add_argument(
+        "--bookmark",
+        "-b",
+        help="jj bookmark name for dependent queue items",
+    )
 
     template_parser = subparsers.add_parser(
         "template", help="Create a prompt template file"
@@ -299,6 +304,7 @@ def cmd_add(manager: QueueManager, args) -> int:
         allowed_tools=getattr(args, "allowed_tools", None),
         timeout=getattr(args, "prompt_timeout", None),
         model=getattr(args, "model", None),
+        bookmark=getattr(args, "bookmark", None),
     )
 
     success = manager.add_prompt(prompt)

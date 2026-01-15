@@ -51,6 +51,7 @@ class QueuedPrompt:
     model: Optional[str] = (
         None  # Claude model to use: "sonnet" (default), "opus", "haiku"
     )
+    bookmark: Optional[str] = None  # jj bookmark name for dependent queue items
 
     def __post_init__(self):
         """Validate permission_mode if provided."""
@@ -228,6 +229,8 @@ class ExecutionResult:
     error: str = ""
     rate_limit_info: Optional[RateLimitInfo] = None
     execution_time: float = 0.0
+    jj_bookmark_to_set: Optional[str] = None  # Bookmark to set on success
+    jj_working_dir: Optional[str] = None  # Working directory for jj operations
 
     @property
     def is_rate_limited(self) -> bool:

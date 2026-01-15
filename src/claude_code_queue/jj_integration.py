@@ -47,15 +47,23 @@ class JujutsuIntegration:
 
     @staticmethod
     def create_new_change(
-        working_dir: str, prompt_id: str, prompt_content: str
+        working_dir: str,
+        prompt_id: str,
+        prompt_content: str,
+        bookmark: Optional[str] = None,
     ) -> Tuple[bool, str]:
         """
-        Create a new jj change based on the main bookmark.
+        Create a new jj change based on a bookmark or main.
+
+        If a bookmark is provided:
+          - If the bookmark exists, create the change based on that bookmark
+          - If the bookmark doesn't exist, create the change based on main
 
         Args:
             working_dir: Path to the working directory
             prompt_id: The queue prompt ID
             prompt_content: The prompt content for the description
+            bookmark: Optional bookmark name to base the change on
 
         Returns:
             Tuple of (success, message)
@@ -75,13 +83,19 @@ class JujutsuIntegration:
             # Create description in the format: [queue_id] short description
             description = f"[{prompt_id}] {short_desc}"
 
+            # Determine the base revision
+            if bookmark and JujutsuIntegration.bookmark_exists(working_dir, bookmark):
+                base_revision = bookmark
+            else:
+                base_revision = "main"
+
             # Run jj new command
             cmd = [
                 "jj",
                 "new",
                 "-m",
                 description,
-                "main",
+                base_revision,
             ]
 
             result = subprocess.run(
@@ -95,7 +109,8 @@ class JujutsuIntegration:
             if result.returncode == 0:
                 # Extract change ID from output if possible
                 change_info = result.stdout.strip() if result.stdout else "created"
-                return True, f"Created jj change: {change_info}"
+                base_info = f" (based on {base_revision})"
+                return True, f"Created jj change: {change_info}{base_info}"
             else:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
                 return False, f"Failed to create jj change: {error_msg}"
@@ -127,3 +142,89 @@ class JujutsuIntegration:
             return False, "not a jj repository"
 
         return True, None
+
+    @staticmethod
+    def bookmark_exists(working_dir: str, bookmark_name: str) -> bool:
+        """
+        Check if a bookmark exists in the repository.
+
+        Args:
+            working_dir: Path to the working directory
+            bookmark_name: Name of the bookmark to check
+
+        Returns:
+            True if the bookmark exists, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["jj", "bookmark", "list", "--all"],
+                cwd=working_dir,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if result.returncode != 0:
+                return False
+
+            # Parse the output to check for the bookmark
+            # jj bookmark list output format: "bookmark_name: commit_id"
+            for line in result.stdout.strip().split("\n"):
+                if line.strip():
+                    # Extract bookmark name (before the colon or first whitespace)
+                    parts = line.split(":")
+                    if parts:
+                        existing_bookmark = parts[0].strip()
+                        if existing_bookmark == bookmark_name:
+                            return True
+
+            return False
+
+        except Exception:
+            return False
+
+    @staticmethod
+    def set_bookmark(
+        working_dir: str, bookmark_name: str, create: bool = False
+    ) -> Tuple[bool, str]:
+        """
+        Set a bookmark to point to the current working copy commit.
+
+        Args:
+            working_dir: Path to the working directory
+            bookmark_name: Name of the bookmark to set
+            create: If True, create the bookmark if it doesn't exist
+
+        Returns:
+            Tuple of (success, message)
+        """
+        try:
+            cmd = ["jj", "bookmark"]
+            if create:
+                cmd.append("create")
+            else:
+                cmd.append("set")
+
+            cmd.append(bookmark_name)
+
+            result = subprocess.run(
+                cmd,
+                cwd=working_dir,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if result.returncode == 0:
+                action = "Created and set" if create else "Set"
+                return True, f"{action} bookmark '{bookmark_name}'"
+            else:
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                return False, f"Failed to set bookmark: {error_msg}"
+
+        except subprocess.TimeoutExpired:
+            return False, "Timeout while setting bookmark"
+        except FileNotFoundError:
+            return False, "jj command not found in PATH"
+        except Exception as e:
+            return False, f"Error setting bookmark: {str(e)}"

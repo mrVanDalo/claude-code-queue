@@ -56,12 +56,16 @@ class ClaudeCodeInterface:
             should_create, reason = JujutsuIntegration.should_create_change(
                 str(working_dir)
             )
+            jj_bookmark_to_set = None  # Track if we need to set a bookmark on success
             if should_create:
                 success, message = JujutsuIntegration.create_new_change(
-                    str(working_dir), prompt.id, prompt.content
+                    str(working_dir), prompt.id, prompt.content, prompt.bookmark
                 )
                 if success:
                     print(f"  {message}")
+                    # Track that we need to set the bookmark on success
+                    if prompt.bookmark:
+                        jj_bookmark_to_set = prompt.bookmark
                 else:
                     print(f"  Warning: {message}")
             else:
@@ -123,6 +127,8 @@ class ClaudeCodeInterface:
                 error=result.stderr,
                 rate_limit_info=rate_limit_info,
                 execution_time=execution_time,
+                jj_bookmark_to_set=jj_bookmark_to_set if success else None,
+                jj_working_dir=str(working_dir) if jj_bookmark_to_set else None,
             )
 
         except subprocess.TimeoutExpired:

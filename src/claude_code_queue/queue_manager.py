@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Optional
 
 from .claude_interface import ClaudeCodeInterface
+from .jj_integration import JujutsuIntegration
 from .models import ExecutionResult, PromptStatus, QueuedPrompt, QueueState
 from .storage import QueueStorage
 
@@ -224,6 +225,23 @@ class QueueManager:
             prompt.add_log(f"{execution_summary} - SUCCESS")
             if result.output:
                 prompt.add_log(f"Output:\n{result.output}")
+
+            # Handle jj bookmark setting on success
+            if result.jj_bookmark_to_set and result.jj_working_dir:
+                bookmark_exists = JujutsuIntegration.bookmark_exists(
+                    result.jj_working_dir, result.jj_bookmark_to_set
+                )
+                success, message = JujutsuIntegration.set_bookmark(
+                    result.jj_working_dir,
+                    result.jj_bookmark_to_set,
+                    create=not bookmark_exists,
+                )
+                if success:
+                    print(f"  {message}")
+                    prompt.add_log(f"jj bookmark: {message}")
+                else:
+                    print(f"  Warning: {message}")
+                    prompt.add_log(f"jj bookmark warning: {message}")
 
             self.state.total_processed += 1
             print(f"✓ Prompt {prompt.id} completed successfully")
@@ -455,6 +473,7 @@ class QueueManager:
                 allowed_tools=original_prompt.allowed_tools,
                 timeout=original_prompt.timeout,
                 model=original_prompt.model,
+                bookmark=original_prompt.bookmark,
             )
 
             self.state.add_prompt(new_prompt)
