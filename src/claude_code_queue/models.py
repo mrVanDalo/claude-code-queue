@@ -2,11 +2,11 @@
 Data structures for Claude Code Queue system.
 """
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any
-import uuid
+from typing import Any, Dict, List, Optional
 
 
 class PromptStatus(Enum):

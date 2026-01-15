@@ -7,9 +7,9 @@ import subprocess
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
-from .models import ExecutionResult, RateLimitInfo, QueuedPrompt
+from .models import ExecutionResult, QueuedPrompt, RateLimitInfo
 
 
 class ClaudeCodeInterface:

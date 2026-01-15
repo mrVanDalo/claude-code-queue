@@ -9,8 +9,8 @@ import argparse
 import json
 from datetime import datetime
 
+from .models import PromptStatus, QueuedPrompt
 from .queue_manager import QueueManager
-from .models import QueuedPrompt, PromptStatus
 
 
 def main():
@@ -132,9 +132,13 @@ Examples:
 
     # Bank subcommands
     bank_parser = subparsers.add_parser("bank", help="Manage prompt templates bank")
-    bank_subparsers = bank_parser.add_subparsers(dest="bank_command", help="Bank operations")
+    bank_subparsers = bank_parser.add_subparsers(
+        dest="bank_command", help="Bank operations"
+    )
 
-    bank_save_parser = bank_subparsers.add_parser("save", help="Save a template to bank")
+    bank_save_parser = bank_subparsers.add_parser(
+        "save", help="Save a template to bank"
+    )
     bank_save_parser.add_argument("template_name", help="Template name for bank")
     bank_save_parser.add_argument(
         "--priority", "-p", type=int, default=0, help="Default priority"
@@ -146,7 +150,9 @@ Examples:
     bank_use_parser = bank_subparsers.add_parser("use", help="Use template from bank")
     bank_use_parser.add_argument("template_name", help="Template name to use")
 
-    bank_delete_parser = bank_subparsers.add_parser("delete", help="Delete template from bank")
+    bank_delete_parser = bank_subparsers.add_parser(
+        "delete", help="Delete template from bank"
+    )
     bank_delete_parser.add_argument("template_name", help="Template name to delete")
 
     args = parser.parse_args()
@@ -379,28 +385,28 @@ def cmd_bank_save(manager: QueueManager, args) -> int:
 def cmd_bank_list(manager: QueueManager, args) -> int:
     """List templates in the bank."""
     templates = manager.list_bank_templates()
-    
+
     if args.json:
         print(json.dumps(templates, indent=2, default=str))
         return 0
-    
+
     if not templates:
         print("No templates found in bank")
         return 0
-    
+
     print(f"Found {len(templates)} template(s) in bank:")
     print("-" * 80)
-    
+
     for template in templates:
         print(f"📄 {template['name']}")
         print(f"   Title: {template['title']}")
         print(f"   Priority: {template['priority']}")
         print(f"   Working directory: {template['working_directory']}")
-        if template['estimated_tokens']:
+        if template["estimated_tokens"]:
             print(f"   Estimated tokens: {template['estimated_tokens']}")
         print(f"   Modified: {template['modified'].strftime('%Y-%m-%d %H:%M:%S')}")
         print()
-    
+
     return 0
 
 

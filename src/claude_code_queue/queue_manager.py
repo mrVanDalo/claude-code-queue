@@ -2,14 +2,14 @@
 Queue manager with execution loop.
 """
 
-import time
 import signal
+import time
 from datetime import datetime, timedelta
-from typing import Optional, Callable, Dict, Any
+from typing import Any, Callable, Dict, Optional
 
-from .models import QueuedPrompt, QueueState, PromptStatus, ExecutionResult
-from .storage import QueueStorage
 from .claude_interface import ClaudeCodeInterface
+from .models import ExecutionResult, PromptStatus, QueuedPrompt, QueueState
+from .storage import QueueStorage
 
 
 class QueueManager:
@@ -93,13 +93,20 @@ class QueueManager:
         previous_failed_count = self.state.failed_count if self.state else 0
         previous_rate_limited_count = self.state.rate_limited_count if self.state else 0
         previous_last_processed = self.state.last_processed if self.state else None
-        
+
         self.state = self.storage.load_queue_state()
-        
-        self.state.total_processed = max(self.state.total_processed, previous_total_processed)
+
+        self.state.total_processed = max(
+            self.state.total_processed, previous_total_processed
+        )
         self.state.failed_count = max(self.state.failed_count, previous_failed_count)
-        self.state.rate_limited_count = max(self.state.rate_limited_count, previous_rate_limited_count)
-        if previous_last_processed and (not self.state.last_processed or self.state.last_processed < previous_last_processed):
+        self.state.rate_limited_count = max(
+            self.state.rate_limited_count, previous_rate_limited_count
+        )
+        if previous_last_processed and (
+            not self.state.last_processed
+            or self.state.last_processed < previous_last_processed
+        ):
             self.state.last_processed = previous_last_processed
 
         self._check_rate_limited_prompts()
@@ -317,12 +324,14 @@ class QueueManager:
 
             self.state.add_prompt(prompt)
             success = self.storage.save_queue_state(self.state)
-            
+
             if success:
-                print(f"✓ Added prompt {prompt.id} from template '{template_name}' to queue")
+                print(
+                    f"✓ Added prompt {prompt.id} from template '{template_name}' to queue"
+                )
             else:
                 print(f"✗ Failed to save prompt from template '{template_name}'")
-            
+
             return success
 
         except Exception as e:

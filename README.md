@@ -4,13 +4,13 @@ A tool to queue Claude Code prompts and automatically execute them when token li
 
 ## Features
 
--   **Markdown-based Queue**: Each prompt is a `.md` file with YAML frontmatter
--   **Automatic Rate Limit Handling**: Detects rate limits and waits for reset windows
--   **Priority System**: Execute high-priority prompts first
--   **Retry Logic**: Automatically retry failed prompts
--   **Persistent Storage**: Queue survives system restarts
--   **Prompt Bank**: Save and reuse templates for recurring tasks
--   **CLI Interface**: Simple command-line interface
+- **Markdown-based Queue**: Each prompt is a `.md` file with YAML frontmatter
+- **Automatic Rate Limit Handling**: Detects rate limits and waits for reset windows
+- **Priority System**: Execute high-priority prompts first
+- **Retry Logic**: Automatically retry failed prompts
+- **Persistent Storage**: Queue survives system restarts
+- **Prompt Bank**: Save and reuse templates for recurring tasks
+- **CLI Interface**: Simple command-line interface
 
 ## Installation
 
@@ -59,27 +59,28 @@ After installation, use the `claude-queue` command:
 
 1. **Test Claude Code connection:**
 
-    ```bash
-    claude-queue test
-    ```
+   ```bash
+   claude-queue test
+   ```
 
-2. **Add a quick prompt:**
+1. **Add a quick prompt:**
 
-    ```bash
-    claude-queue add "Fix the authentication bug" --priority 1
-    ```
+   ```bash
+   claude-queue add "Fix the authentication bug" --priority 1
+   ```
 
-3. **Create a detailed prompt template:**
+1. **Create a detailed prompt template:**
 
-    ```bash
-    claude-queue template my-feature --priority 2
-    # Edit ~/.claude-queue/queue/my-feature.md with your prompt
-    ```
+   ```bash
+   claude-queue template my-feature --priority 2
+   # Edit ~/.claude-queue/queue/my-feature.md with your prompt
+   ```
 
-4. **Start the queue processor:**
-    ```bash
-    claude-queue start
-    ```
+1. **Start the queue processor:**
+
+   ```bash
+   claude-queue start
+   ```
 
 ## Usage
 
@@ -217,13 +218,15 @@ claude-queue bank delete update-docs
 ### Typical Workflow for Recurring Tasks
 
 1. **One-time setup:**
+
    ```bash
    # Create and customize your template
    claude-queue bank save daily-standup --priority 1
    # Edit ~/.claude-queue/bank/daily-standup.md with your specific requirements
    ```
 
-2. **Daily usage:**
+1. **Daily usage:**
+
    ```bash
    # Simply add to queue whenever needed
    claude-queue bank use daily-standup
@@ -235,15 +238,15 @@ This eliminates the need to recreate the same prompt structure every time!
 ## How It Works
 
 1. **Queue Processing**: Runs prompts in priority order (lower number = higher priority)
-2. **Rate Limit Detection**: Monitors Claude Code output for rate limit messages
-3. **Automatic Waiting**: When rate limited, waits for the next 5-hour window
-4. **Retry Logic**: Failed prompts are retried up to `max_retries` times
-5. **File Organization**:
-    - `~/.claude-queue/queue/` - Pending prompts
-    - `~/.claude-queue/completed/` - Successful executions
-    - `~/.claude-queue/failed/` - Failed prompts
-    - `~/.claude-queue/bank/` - Saved template library
-    - `~/.claude-queue/queue-state.json` - Queue metadata
+1. **Rate Limit Detection**: Monitors Claude Code output for rate limit messages
+1. **Automatic Waiting**: When rate limited, waits for the next 5-hour window
+1. **Retry Logic**: Failed prompts are retried up to `max_retries` times
+1. **File Organization**:
+   - `~/.claude-queue/queue/` - Pending prompts
+   - `~/.claude-queue/completed/` - Successful executions
+   - `~/.claude-queue/failed/` - Failed prompts
+   - `~/.claude-queue/bank/` - Saved template library
+   - `~/.claude-queue/queue-state.json` - Queue metadata
 
 ## Configuration
 
@@ -255,10 +258,10 @@ claude-queue --help
 
 Key options:
 
--   `--storage-dir`: Queue storage location (default: `~/.claude-queue`)
--   `--claude-command`: Claude CLI command (default: `claude`)
--   `--check-interval`: Check interval in seconds (default: 30)
--   `--timeout`: Command timeout in seconds (default: 3600)
+- `--storage-dir`: Queue storage location (default: `~/.claude-queue`)
+- `--claude-command`: Claude CLI command (default: `claude`)
+- `--check-interval`: Check interval in seconds (default: 30)
+- `--timeout`: Command timeout in seconds (default: 3600)
 
 ### Prompt Configuration
 
@@ -338,15 +341,15 @@ There's a bug in the user authentication system where users can't log in with sp
 
 The system automatically detects Claude Code rate limits by monitoring:
 
--   "usage limit reached" messages
--   Claude's reset time information
--   Standard rate limit error patterns
+- "usage limit reached" messages
+- Claude's reset time information
+- Standard rate limit error patterns
 
 When rate limited:
 
 1. Prompt status changes to `rate_limited`
-2. Naively loop every fixed interval until rate limit is lifted (there's probably a way smarter way to find the end time of rate limit window， open to contributions)
-3. Once the rate limit is lifted, continue processing the requests
+1. Naively loop every fixed interval until rate limit is lifted (there's probably a way smarter way to find the end time of rate limit window， open to contributions)
+1. Once the rate limit is lifted, continue processing the requests
 
 ## Troubleshooting
 
@@ -362,14 +365,14 @@ claude-queue status --detailed
 
 **Prompts stuck in executing state:**
 
--   Stop queue processor (Ctrl+C)
--   Restart with `claude-queue start`
--   Executing prompts will reset to queued status
+- Stop queue processor (Ctrl+C)
+- Restart with `claude-queue start`
+- Executing prompts will reset to queued status
 
 **Rate limit not detected:**
 
--   Check if Claude Code output format changed
--   File an issue with the error message you received
+- Check if Claude Code output format changed
+- File an issue with the error message you received
 
 ## Directory Structure
 
