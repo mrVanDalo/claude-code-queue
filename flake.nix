@@ -30,6 +30,9 @@
                 ./README.md
                 ./requirements.txt
                 ./src
+                ./shell-helpers.bash
+                ./shell-helpers.zsh
+                ./shell-helpers.fish
               ];
             };
 
@@ -42,6 +45,22 @@
             ];
 
             pythonImportsCheck = [ "claude_code_queue" ];
+
+            # Install shell helper functions
+            postInstall = ''
+              # Create shell helpers directory
+              mkdir -p $out/share/claude-code-queue/shell-helpers
+
+              # Install shell helper files
+              cp ${./shell-helpers.bash} $out/share/claude-code-queue/shell-helpers/shell-helpers.bash
+              cp ${./shell-helpers.zsh} $out/share/claude-code-queue/shell-helpers/shell-helpers.zsh
+              cp ${./shell-helpers.fish} $out/share/claude-code-queue/shell-helpers/shell-helpers.fish
+
+              # Create fish completions directory if needed
+              mkdir -p $out/share/fish/vendor_completions.d
+              ln -s $out/share/claude-code-queue/shell-helpers/shell-helpers.fish \
+                    $out/share/fish/vendor_completions.d/claude-queue.fish
+            '';
 
             meta = {
               description = "Queue Claude Code prompts and execute them when token limits reset";
@@ -86,6 +105,14 @@
               echo "  nix fmt                     # Format code"
               echo "  mypy src/                   # Type checking"
               echo "  pytest                      # Run tests"
+              echo ""
+              echo "Shell helpers are available at:"
+              echo "  ./shell-helpers.bash        # Bash/Zsh helpers"
+              echo "  ./shell-helpers.zsh         # Zsh-specific helpers"
+              echo "  ./shell-helpers.fish        # Fish shell helpers"
+              echo ""
+              echo "After 'nix build', helpers will be in:"
+              echo "  result/share/claude-code-queue/shell-helpers/"
               echo ""
               echo "⚠️  DO NOT use pip install - build with Nix only"
               echo ""
