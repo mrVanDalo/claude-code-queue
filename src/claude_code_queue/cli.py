@@ -7,6 +7,7 @@ A tool to queue Claude Code prompts and automatically execute them when token li
 
 import argparse
 import json
+import os
 from datetime import datetime
 
 from .models import PromptStatus, QueuedPrompt
@@ -91,7 +92,7 @@ Examples:
         help="Priority (lower = higher priority)",
     )
     add_parser.add_argument(
-        "--working-dir", "-d", default=".", help="Working directory"
+        "--working-dir", "-d", default=os.getcwd(), help="Working directory"
     )
     add_parser.add_argument(
         "--context-files", "-f", nargs="*", default=[], help="Context files to include"
