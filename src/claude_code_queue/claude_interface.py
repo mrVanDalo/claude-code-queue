@@ -164,6 +164,7 @@ class ClaudeCodeInterface:
             ("too many requests", self._estimate_reset_time),
             ("quota exceeded", self._estimate_reset_time),
             ("limit exceeded", self._estimate_reset_time),
+            ("you've hit your limit", self._estimate_reset_time),
         ]
 
         for pattern, reset_extractor in rate_limit_patterns:
