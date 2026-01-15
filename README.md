@@ -25,6 +25,34 @@ cd claude-code-queue
 pip install -e .
 ```
 
+### NixOS / Nix Flakes
+
+If you're using Nix, you can install and run this project using the flake:
+
+```bash
+# Run directly without installing
+nix run github:JCSnap/claude-code-queue
+
+# Or from local directory
+nix run .
+
+# Install to your profile
+nix profile install github:JCSnap/claude-code-queue
+
+# Enter development shell with all tools
+nix develop
+```
+
+For NixOS, add to your `configuration.nix`:
+
+```nix
+{
+  environment.systemPackages = [
+    (pkgs.callPackage ./path/to/claude-code-queue {})
+  ];
+}
+```
+
 ## Quick Start
 
 After installation, use the `claude-queue` command:
