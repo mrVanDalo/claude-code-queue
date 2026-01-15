@@ -152,6 +152,9 @@ Examples:
     cancel_parser = subparsers.add_parser("cancel", help="Cancel a prompt")
     cancel_parser.add_argument("prompt_id", help="Prompt ID to cancel")
 
+    retry_parser = subparsers.add_parser("retry", help="Retry a failed prompt")
+    retry_parser.add_argument("prompt_id", help="Prompt ID to retry")
+
     list_parser = subparsers.add_parser("list", help="List prompts")
     list_parser.add_argument(
         "--status", choices=[s.value for s in PromptStatus], help="Filter by status"
@@ -209,6 +212,8 @@ Examples:
             return cmd_status(manager, args)
         elif args.command == "cancel":
             return cmd_cancel(manager, args)
+        elif args.command == "retry":
+            return cmd_retry(manager, args)
         elif args.command == "list":
             return cmd_list(manager, args)
         elif args.command == "test":
@@ -297,27 +302,53 @@ def cmd_status(manager: QueueManager, args) -> int:
             reset_dt = datetime.fromisoformat(reset_time)
             print(f"\nRate limited until: {reset_dt.strftime('%Y-%m-%d %H:%M:%S')}")
 
-    if args.detailed and state.prompts:
-        print("\nPrompts:")
-        print("-" * 40)
-        for prompt in sorted(state.prompts, key=lambda p: p.priority):
-            status_icon = {
-                PromptStatus.QUEUED: "⏳",
-                PromptStatus.EXECUTING: "▶️",
-                PromptStatus.COMPLETED: "✅",
-                PromptStatus.FAILED: "❌",
-                PromptStatus.CANCELLED: "🚫",
-                PromptStatus.RATE_LIMITED: "⚠️",
-            }.get(prompt.status, "❓")
+    if args.detailed:
+        # Show failed prompts sorted by creation date
+        failed_prompts = [p for p in state.prompts if p.status == PromptStatus.FAILED]
 
-            print(
-                f"{status_icon} {prompt.id} (P{prompt.priority}) - {prompt.status.value}"
-            )
-            print(
-                f"   {prompt.content[:80]}{'...' if len(prompt.content) > 80 else ''}"
-            )
-            if prompt.retry_count > 0:
+        if failed_prompts:
+            print("\nFailed Prompts (sorted by creation date):")
+            print("-" * 80)
+            for prompt in sorted(failed_prompts, key=lambda p: p.created_at):
+                print(f"❌ {prompt.id} (P{prompt.priority})")
+                print(
+                    f"   {prompt.content[:70]}{'...' if len(prompt.content) > 70 else ''}"
+                )
+                print(f"   Created: {prompt.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
                 print(f"   Retries: {prompt.retry_count}/{prompt.max_retries}")
+                print(f"   Working directory: {prompt.working_directory}")
+                if prompt.execution_log:
+                    # Show last log entry
+                    log_lines = prompt.execution_log.strip().split("\n")
+                    if log_lines:
+                        print(f"   Last log: {log_lines[-1]}")
+                print()
+        else:
+            print("\nNo failed prompts")
+
+        # Also show other prompts for context
+        other_prompts = [p for p in state.prompts if p.status != PromptStatus.FAILED]
+        if other_prompts:
+            print("\nOther Prompts (sorted by priority):")
+            print("-" * 80)
+            for prompt in sorted(other_prompts, key=lambda p: p.priority):
+                status_icon = {
+                    PromptStatus.QUEUED: "⏳",
+                    PromptStatus.EXECUTING: "▶️",
+                    PromptStatus.COMPLETED: "✅",
+                    PromptStatus.CANCELLED: "🚫",
+                    PromptStatus.RATE_LIMITED: "⚠️",
+                }.get(prompt.status, "❓")
+
+                print(
+                    f"{status_icon} {prompt.id} (P{prompt.priority}) - {prompt.status.value}"
+                )
+                print(
+                    f"   {prompt.content[:70]}{'...' if len(prompt.content) > 70 else ''}"
+                )
+                if prompt.retry_count > 0:
+                    print(f"   Retries: {prompt.retry_count}/{prompt.max_retries}")
+                print()
 
     return 0
 
@@ -325,6 +356,12 @@ def cmd_status(manager: QueueManager, args) -> int:
 def cmd_cancel(manager: QueueManager, args) -> int:
     """Cancel a prompt."""
     success = manager.remove_prompt(args.prompt_id)
+    return 0 if success else 1
+
+
+def cmd_retry(manager: QueueManager, args) -> int:
+    """Retry a failed prompt by creating a new task with the same parameters."""
+    success = manager.retry_prompt(args.prompt_id)
     return 0 if success else 1
 
 

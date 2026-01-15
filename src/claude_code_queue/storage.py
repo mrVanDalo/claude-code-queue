@@ -29,6 +29,14 @@ class MarkdownPromptParser:
                 if len(parts) >= 3:
                     frontmatter = parts[1]
                     markdown_content = parts[2].strip()
+
+                    # Strip execution log section if present (use specific pattern to avoid false positives)
+                    execution_log_marker = "\n## Execution Log\n"
+                    if execution_log_marker in markdown_content:
+                        # Split at the execution log header and take only the content before it
+                        markdown_content = markdown_content.split(execution_log_marker)[
+                            0
+                        ].strip()
                 else:
                     frontmatter = ""
                     markdown_content = content
@@ -217,10 +225,8 @@ class QueueStorage:
                 processed_ids.add(prompt.id)
 
         for file_path in self.queue_dir.glob("*.md"):
-            if (
-                file_path.name.endswith(".executing.md")
-                or file_path.name.endswith(".rate-limited.md")
-                or "#" in file_path.name
+            if file_path.name.endswith(".executing.md") or file_path.name.endswith(
+                ".rate-limited.md"
             ):
                 continue
 
@@ -228,6 +234,17 @@ class QueueStorage:
             if prompt and prompt.id not in processed_ids:
                 prompt.status = PromptStatus.QUEUED
                 prompts.append(prompt)
+
+        # Load failed prompts from the failed directory
+        for file_path in self.failed_dir.glob("*.md"):
+            if "#" in file_path.name:
+                continue
+
+            prompt = self.parser.parse_prompt_file(file_path)
+            if prompt and prompt.id not in processed_ids:
+                prompt.status = PromptStatus.FAILED
+                prompts.append(prompt)
+                processed_ids.add(prompt.id)
 
         return prompts
 

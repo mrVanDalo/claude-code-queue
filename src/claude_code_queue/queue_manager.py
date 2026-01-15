@@ -291,6 +291,45 @@ class QueueManager:
             print(f"Error removing prompt: {e}")
             return False
 
+    def retry_prompt(self, prompt_id: str) -> bool:
+        """Retry a failed prompt by creating a new task with the same parameters."""
+        try:
+            if not self.state:
+                self.state = self.storage.load_queue_state()
+
+            original_prompt = self.state.get_prompt(prompt_id)
+            if not original_prompt:
+                print(f"Prompt {prompt_id} not found")
+                return False
+
+            # Create a new prompt with the same parameters
+            new_prompt = QueuedPrompt(
+                content=original_prompt.content,
+                working_directory=original_prompt.working_directory,
+                priority=original_prompt.priority,
+                context_files=original_prompt.context_files,
+                max_retries=original_prompt.max_retries,
+                estimated_tokens=original_prompt.estimated_tokens,
+                permission_mode=original_prompt.permission_mode,
+                allowed_tools=original_prompt.allowed_tools,
+                timeout=original_prompt.timeout,
+                model=original_prompt.model,
+            )
+
+            self.state.add_prompt(new_prompt)
+
+            success = self.storage.save_queue_state(self.state)
+            if success:
+                print(f"✓ Created new prompt {new_prompt.id} based on {prompt_id}")
+            else:
+                print(f"✗ Failed to save new prompt based on {prompt_id}")
+
+            return success
+
+        except Exception as e:
+            print(f"Error retrying prompt: {e}")
+            return False
+
     def get_status(self) -> QueueState:
         """Get current queue status."""
         if not self.state:
