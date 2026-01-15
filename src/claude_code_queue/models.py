@@ -171,6 +171,10 @@ class QueueState:
         self.prompts = [p for p in self.prompts if p.id != prompt_id]
         return len(self.prompts) < original_count
 
+    def delete_prompt(self, prompt_id: str) -> bool:
+        """Permanently delete a prompt from the queue (hard delete)."""
+        return self.remove_prompt(prompt_id)
+
     def get_prompt(self, prompt_id: str) -> Optional[QueuedPrompt]:
         """Get a prompt by ID."""
         for prompt in self.prompts:
