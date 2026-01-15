@@ -84,13 +84,24 @@ pytest
 - `requirements.txt` - Python dependencies (also defined in flake.nix)
 - `treefmt.nix` - Code formatting configuration
 
+## Workflow for Starting a Task
+
+Before starting any task, create a new Jujutsu branch:
+
+```bash
+jj new -m "<summary of task>" main
+```
+
+This creates a new change based on main with a descriptive message summarizing the task.
+
 ## Testing Changes
 
 When making changes to the code:
 
-1. Enter development environment: `nix develop`
-2. Make your changes
-3. Format code: `nix fmt`
-4. Build with Nix: `nix build`
-5. Verify: `./result/bin/claude-queue --help`
-6. Check flake: `nix flake check`
+1. Create a new branch: `jj new -m "<summary of task>" main`
+2. Enter development environment: `nix develop`
+3. Make your changes
+4. Format code: `nix fmt`
+5. Build with Nix: `nix build`
+6. Verify: `./result/bin/claude-queue --help`
+7. Check flake: `nix flake check`
