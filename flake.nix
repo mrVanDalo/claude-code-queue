@@ -56,7 +56,11 @@
               cp ${./shell-helpers.zsh} $out/share/claude-code-queue/shell-helpers/shell-helpers.zsh
               cp ${./shell-helpers.fish} $out/share/claude-code-queue/shell-helpers/shell-helpers.fish
 
-              # Create fish completions directory if needed
+              # Install Zsh completions
+              mkdir -p $out/share/zsh/site-functions
+              cp ${./shell-helpers.zsh} $out/share/zsh/site-functions/_claude-queue
+
+              # Install Fish completions
               mkdir -p $out/share/fish/vendor_completions.d
               ln -s $out/share/claude-code-queue/shell-helpers/shell-helpers.fish \
                     $out/share/fish/vendor_completions.d/claude-queue.fish
