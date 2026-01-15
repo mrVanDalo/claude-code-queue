@@ -327,6 +327,46 @@ class QueueManager:
             print(f"Error removing prompt: {e}")
             return False
 
+    def delete_prompt(self, prompt_id: str) -> bool:
+        """Permanently delete a prompt from storage (hard delete)."""
+        try:
+            if not self.state:
+                self.state = self.storage.load_queue_state()
+
+            prompt = self.state.get_prompt(prompt_id)
+            if prompt:
+                if prompt.status == PromptStatus.EXECUTING:
+                    print(f"Cannot delete executing prompt {prompt_id}")
+                    return False
+
+                # Remove from state
+                removed_from_state = self.state.delete_prompt(prompt_id)
+
+                # Delete files from storage
+                files_deleted = self.storage.delete_prompt_files(prompt_id)
+
+                if removed_from_state or files_deleted:
+                    # Save updated state
+                    self.storage.save_queue_state(self.state)
+                    print(f"✓ Deleted prompt {prompt_id}")
+                    return True
+                else:
+                    print(f"✗ Failed to delete prompt {prompt_id}")
+                    return False
+            else:
+                # Prompt not in memory, but might exist in files - try deleting files anyway
+                files_deleted = self.storage.delete_prompt_files(prompt_id)
+                if files_deleted:
+                    print(f"✓ Deleted prompt {prompt_id} (files only)")
+                    return True
+                else:
+                    print(f"Prompt {prompt_id} not found")
+                    return False
+
+        except Exception as e:
+            print(f"Error deleting prompt: {e}")
+            return False
+
     def retry_prompt(self, prompt_id: str) -> bool:
         """Retry a failed prompt by creating a new task with the same parameters."""
         try:

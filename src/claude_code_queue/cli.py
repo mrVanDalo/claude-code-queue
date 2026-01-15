@@ -41,10 +41,13 @@ Examples:
   # Check queue status
   python -m claude_code_queue.cli status
 
-  # Cancel a prompt
+  # Cancel a prompt (marks as cancelled)
   python -m claude_code_queue.cli cancel abc123
 
-  # Test Claude Code connection  
+  # Permanently delete a prompt
+  python -m claude_code_queue.cli delete abc123
+
+  # Test Claude Code connection
   python -m claude_code_queue.cli test
         """,
     )
@@ -159,6 +162,11 @@ Examples:
     cancel_parser = subparsers.add_parser("cancel", help="Cancel a prompt")
     cancel_parser.add_argument("prompt_id", help="Prompt ID to cancel")
 
+    delete_parser = subparsers.add_parser(
+        "delete", help="Permanently delete a prompt from storage"
+    )
+    delete_parser.add_argument("prompt_id", help="Prompt ID to delete")
+
     retry_parser = subparsers.add_parser("retry", help="Retry a failed prompt")
     retry_parser.add_argument("prompt_id", help="Prompt ID to retry")
 
@@ -221,6 +229,8 @@ Examples:
             return cmd_status(manager, args)
         elif args.command == "cancel":
             return cmd_cancel(manager, args)
+        elif args.command == "delete":
+            return cmd_delete(manager, args)
         elif args.command == "retry":
             return cmd_retry(manager, args)
         elif args.command == "list":
@@ -376,6 +386,12 @@ def cmd_status(manager: QueueManager, args) -> int:
 def cmd_cancel(manager: QueueManager, args) -> int:
     """Cancel a prompt."""
     success = manager.remove_prompt(args.prompt_id)
+    return 0 if success else 1
+
+
+def cmd_delete(manager: QueueManager, args) -> int:
+    """Permanently delete a prompt from storage."""
+    success = manager.delete_prompt(args.prompt_id)
     return 0 if success else 1
 
 

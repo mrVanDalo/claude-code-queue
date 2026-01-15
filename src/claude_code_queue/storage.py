@@ -301,6 +301,23 @@ class QueueStorage:
             except Exception as e:
                 print(f"Error removing processed file {file_path}: {e}")
 
+    def delete_prompt_files(self, prompt_id: str) -> bool:
+        """Permanently delete all files for a prompt ID from all directories."""
+        try:
+            files_found = False
+            for directory in [self.queue_dir, self.completed_dir, self.failed_dir]:
+                for file_path in directory.glob(f"{prompt_id}*.md"):
+                    files_found = True
+                    try:
+                        file_path.unlink()
+                    except Exception as e:
+                        print(f"Error deleting file {file_path}: {e}")
+                        return False
+            return files_found
+        except Exception as e:
+            print(f"Error deleting prompt files for {prompt_id}: {e}")
+            return False
+
     @staticmethod
     def _sanitize_filename_static(text: str) -> str:
         """Sanitize text for use in filename (static version for use in parser)."""
