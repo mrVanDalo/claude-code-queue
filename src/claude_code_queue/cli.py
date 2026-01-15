@@ -22,34 +22,34 @@ def main():
         epilog="""
 Examples:
   # Start the queue processor
-  python -m claude_code_queue.cli start
+  claude-queue start
 
   # Add a quick prompt
-  python -m claude_code_queue.cli add "Fix the authentication bug" --priority 1
+  claude-queue add "Fix the authentication bug" --priority 1
 
   # Create a template for detailed prompt
-  python -m claude_code_queue.cli template my-feature --priority 2
+  claude-queue template my-feature --priority 2
 
   # Save a reusable template to bank
-  python -m claude_code_queue.cli bank save update-docs --priority 1
+  claude-queue bank save update-docs --priority 1
 
   # List templates in bank
-  python -m claude_code_queue.cli bank list
+  claude-queue bank list
 
   # Use a template from bank (adds to queue)
-  python -m claude_code_queue.cli bank use update-docs
+  claude-queue bank use update-docs
 
   # Check queue status
-  python -m claude_code_queue.cli status
+  claude-queue status
 
   # Cancel a prompt (marks as cancelled)
-  python -m claude_code_queue.cli cancel abc123
+  claude-queue cancel abc123
 
   # Permanently delete a prompt
-  python -m claude_code_queue.cli delete abc123
+  claude-queue delete abc123
 
   # Test Claude Code connection
-  python -m claude_code_queue.cli test
+  claude-queue test
         """,
     )
 
