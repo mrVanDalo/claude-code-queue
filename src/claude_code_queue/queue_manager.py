@@ -439,8 +439,16 @@ class QueueManager:
             print(f"Error deleting prompt: {e}")
             return False
 
-    def retry_prompt(self, prompt_id: str) -> bool:
-        """Retry a failed prompt by creating a new task with the same parameters."""
+    def retry_prompt(self, prompt_id: str, delete_after_success: bool = False) -> bool:
+        """Retry a failed prompt by creating a new task with the same parameters.
+
+        Args:
+            prompt_id: The ID of the prompt to retry
+            delete_after_success: If True, delete the original prompt after successfully creating the new one
+
+        Returns:
+            True if the retry was successful, False otherwise
+        """
         try:
             if not self.state:
                 self.state = self.storage.load_queue_state()
@@ -469,6 +477,23 @@ class QueueManager:
             success = self.storage.save_queue_state(self.state)
             if success:
                 print(f"✓ Created new prompt {new_prompt.id} based on {prompt_id}")
+
+                # Only delete the original if the new prompt was successfully created
+                if delete_after_success:
+                    # Remove from state
+                    removed_from_state = self.state.delete_prompt(prompt_id)
+
+                    # Delete files from storage
+                    files_deleted = self.storage.delete_prompt_files(prompt_id)
+
+                    if removed_from_state or files_deleted:
+                        # Save updated state again after deletion
+                        self.storage.save_queue_state(self.state)
+                        print(f"✓ Deleted original prompt {prompt_id}")
+                    else:
+                        print(
+                            f"⚠ Warning: Failed to delete original prompt {prompt_id}"
+                        )
             else:
                 print(f"✗ Failed to save new prompt based on {prompt_id}")
 

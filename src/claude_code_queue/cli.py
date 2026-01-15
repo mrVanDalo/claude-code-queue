@@ -170,6 +170,12 @@ Examples:
 
     retry_parser = subparsers.add_parser("retry", help="Retry a failed prompt")
     retry_parser.add_argument("prompt_id", help="Prompt ID to retry")
+    retry_parser.add_argument(
+        "--delete",
+        "-d",
+        action="store_true",
+        help="Delete the original prompt after successful retry",
+    )
 
     path_parser = subparsers.add_parser("path", help="Get the file path for a prompt")
     path_parser.add_argument("prompt_id", help="Prompt ID")
@@ -403,7 +409,8 @@ def cmd_delete(manager: QueueManager, args) -> int:
 
 def cmd_retry(manager: QueueManager, args) -> int:
     """Retry a failed prompt by creating a new task with the same parameters."""
-    success = manager.retry_prompt(args.prompt_id)
+    delete_original = getattr(args, "delete", False)
+    success = manager.retry_prompt(args.prompt_id, delete_after_success=delete_original)
     return 0 if success else 1
 
 
