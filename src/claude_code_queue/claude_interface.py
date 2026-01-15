@@ -54,8 +54,16 @@ class ClaudeCodeInterface:
             cmd = [
                 self.claude_command,
                 "--print",
-                "--dangerously-skip-permissions",
-            ]  # Use --print for non-interactive output and skip permissions
+            ]
+
+            # Add permission mode (default: acceptEdits)
+            permission_mode = prompt.permission_mode or "acceptEdits"
+            cmd.extend(["--permission-mode", permission_mode])
+
+            # Add allowed tools if specified
+            if prompt.allowed_tools:
+                tools_str = ",".join(prompt.allowed_tools)
+                cmd.extend(["--allowed-tools", tools_str])
 
             full_prompt = prompt.content
 
@@ -71,8 +79,13 @@ class ClaudeCodeInterface:
 
             cmd.append(full_prompt)
 
+            # Determine effective timeout (per-prompt > global)
+            effective_timeout = (
+                prompt.timeout if prompt.timeout is not None else self.timeout
+            )
+
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self.timeout
+                cmd, capture_output=True, text=True, timeout=effective_timeout
             )
 
             os.chdir(original_cwd)
@@ -97,10 +110,13 @@ class ClaudeCodeInterface:
             except:
                 pass
             execution_time = time.time() - start_time
+            effective_timeout = (
+                prompt.timeout if prompt.timeout is not None else self.timeout
+            )
             return ExecutionResult(
                 success=False,
                 output="",
-                error=f"Execution timed out after {self.timeout} seconds",
+                error=f"Execution timed out after {effective_timeout} seconds",
                 execution_time=execution_time,
             )
         except Exception as e:

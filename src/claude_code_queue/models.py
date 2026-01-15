@@ -20,6 +20,16 @@ class PromptStatus(Enum):
     RATE_LIMITED = "rate_limited"
 
 
+VALID_PERMISSION_MODES = {
+    "acceptEdits",
+    "bypassPermissions",
+    "default",
+    "delegate",
+    "dontAsk",
+    "plan",
+}
+
+
 @dataclass
 class QueuedPrompt:
     """Represents a prompt in the queue."""
@@ -38,6 +48,18 @@ class QueuedPrompt:
     last_executed: Optional[datetime] = None
     rate_limited_at: Optional[datetime] = None
     reset_time: Optional[datetime] = None
+    permission_mode: Optional[str] = None  # "acceptEdits", "bypassPermissions", etc.
+    allowed_tools: Optional[List[str]] = None  # ["Edit", "Write", "Bash(git:*)"]
+    timeout: Optional[int] = None  # Per-prompt timeout override
+
+    def __post_init__(self):
+        """Validate permission_mode if provided."""
+        if self.permission_mode is not None:
+            if self.permission_mode not in VALID_PERMISSION_MODES:
+                raise ValueError(
+                    f"Invalid permission_mode: {self.permission_mode}. "
+                    f"Must be one of: {', '.join(sorted(VALID_PERMISSION_MODES))}"
+                )
 
     def add_log(self, message: str) -> None:
         """Add a log entry with timestamp."""

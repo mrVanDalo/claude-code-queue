@@ -58,6 +58,9 @@ class MarkdownPromptParser:
                 max_retries=metadata.get("max_retries", 3),
                 estimated_tokens=metadata.get("estimated_tokens"),
                 created_at=datetime.fromtimestamp(file_path.stat().st_ctime),
+                permission_mode=metadata.get("permission_mode"),
+                allowed_tools=metadata.get("allowed_tools"),
+                timeout=metadata.get("timeout"),
             )
 
             return prompt
@@ -89,6 +92,12 @@ class MarkdownPromptParser:
                 metadata["rate_limited_at"] = prompt.rate_limited_at.isoformat()
             if prompt.reset_time:
                 metadata["reset_time"] = prompt.reset_time.isoformat()
+            if prompt.permission_mode:
+                metadata["permission_mode"] = prompt.permission_mode
+            if prompt.allowed_tools:
+                metadata["allowed_tools"] = prompt.allowed_tools
+            if prompt.timeout is not None:  # 0 is valid
+                metadata["timeout"] = prompt.timeout
 
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("---\n")
@@ -303,6 +312,12 @@ working_directory: .
 context_files: []
 max_retries: 3
 estimated_tokens: null
+# Permission mode: acceptEdits (default), bypassPermissions, default, delegate, dontAsk, plan
+# permission_mode: acceptEdits
+# Allowed tools: ["Edit", "Write", "Read", "Bash(git:*)"]
+# allowed_tools: []
+# Timeout in seconds (overrides global --timeout)
+# timeout: 3600
 ---
 
 # Prompt Title
@@ -330,6 +345,12 @@ working_directory: .
 context_files: []
 max_retries: 3
 estimated_tokens: null
+# Permission mode: acceptEdits (default), bypassPermissions, default, delegate, dontAsk, plan
+# permission_mode: acceptEdits
+# Allowed tools: ["Edit", "Write", "Read", "Bash(git:*)"]
+# allowed_tools: []
+# Timeout in seconds (overrides global --timeout)
+# timeout: 3600
 ---
 
 # {template_name.replace('-', ' ').replace('_', ' ').title()}

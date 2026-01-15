@@ -102,6 +102,29 @@ Examples:
     add_parser.add_argument(
         "--estimated-tokens", "-t", type=int, help="Estimated token usage"
     )
+    add_parser.add_argument(
+        "--permission-mode",
+        choices=[
+            "acceptEdits",
+            "bypassPermissions",
+            "default",
+            "delegate",
+            "dontAsk",
+            "plan",
+        ],
+        help="Permission mode for this prompt (default: acceptEdits)",
+    )
+    add_parser.add_argument(
+        "--allowed-tools",
+        nargs="*",
+        help='Allowed tools (e.g. "Edit" "Write" "Bash(git:*)")',
+    )
+    add_parser.add_argument(
+        "--prompt-timeout",
+        type=int,
+        dest="prompt_timeout",
+        help="Timeout in seconds for this prompt (overrides global --timeout)",
+    )
 
     template_parser = subparsers.add_parser(
         "template", help="Create a prompt template file"
@@ -218,6 +241,9 @@ def cmd_add(manager: QueueManager, args) -> int:
         context_files=args.context_files,
         max_retries=args.max_retries,
         estimated_tokens=args.estimated_tokens,
+        permission_mode=getattr(args, "permission_mode", None),
+        allowed_tools=getattr(args, "allowed_tools", None),
+        timeout=getattr(args, "prompt_timeout", None),
     )
 
     success = manager.add_prompt(prompt)

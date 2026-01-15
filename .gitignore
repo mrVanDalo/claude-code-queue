@@ -4,3 +4,6 @@ src/claude_code_queue.egg-info/
 # Nix build results
 result
 result-*
+
+
+**/__pycache__

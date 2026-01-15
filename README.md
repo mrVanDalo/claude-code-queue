@@ -269,15 +269,38 @@ Each prompt supports these YAML frontmatter options:
 
 ```yaml
 ---
-priority: 1 # Execution priority (0 = highest)
-working_directory: /path/to/project # Where to run the prompt
-context_files: # Files to include as context
+priority: 1                      # Execution priority (0 = highest)
+working_directory: /path/to/project
+context_files:                   # Files to include as context
     - src/main.py
     - README.md
-max_retries: 3 # Maximum retry attempts
-estimated_tokens: 1000 # Estimated token usage (optional)
+max_retries: 3                   # Maximum retry attempts
+estimated_tokens: 1000           # Estimated token usage (optional)
+permission_mode: acceptEdits     # Permission mode (default: acceptEdits)
+allowed_tools:                   # Specific tools to allow (optional)
+    - Edit
+    - Write
+    - Read
+    - Bash(git:*)
+timeout: 3600                    # Timeout in seconds (optional)
 ---
 ```
+
+**Permission Modes:**
+
+- `acceptEdits` (default): Auto-accepts file edits, prompts for other operations
+- `bypassPermissions`: Skip all permission checks (like old behavior)
+- `dontAsk`: Don't ask for permissions, proceed automatically
+- `default`: Use standard interactive prompts (not recommended for queue)
+- `delegate`: Delegate permission decisions
+- `plan`: Plan mode
+
+**Allowed Tools Examples:**
+
+- `["Edit", "Write", "Read"]` - Only file operations
+- `["Bash(git:*)"]` - Only git commands
+- `["Edit", "Bash(npm:*)", "Bash(pytest:*)"]` - Edits and specific commands
+- Leave empty `[]` to allow no tools, or omit to allow all tools
 
 ## Examples
 
