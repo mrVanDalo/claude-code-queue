@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from .jj_integration import JujutsuIntegration
 from .models import ExecutionResult, QueuedPrompt, RateLimitInfo
 
 
@@ -50,6 +51,22 @@ class ClaudeCodeInterface:
                 working_dir.mkdir(parents=True, exist_ok=True)
 
             os.chdir(working_dir)
+
+            # Check if we should create a jj change before execution
+            should_create, reason = JujutsuIntegration.should_create_change(
+                str(working_dir)
+            )
+            if should_create:
+                success, message = JujutsuIntegration.create_new_change(
+                    str(working_dir), prompt.id, prompt.content
+                )
+                if success:
+                    print(f"  {message}")
+                else:
+                    print(f"  Warning: {message}")
+            else:
+                if reason:
+                    print(f"  Skipping jj change creation: {reason}")
 
             cmd = [
                 self.claude_command,
