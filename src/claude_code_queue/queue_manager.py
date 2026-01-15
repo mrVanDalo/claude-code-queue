@@ -490,3 +490,19 @@ class QueueManager:
             )
 
         return info
+
+    def get_prompt_path(self, prompt_id: str) -> Optional[str]:
+        """Get the file path for a prompt by ID."""
+        file_path = self.storage.get_prompt_path(prompt_id)
+        return str(file_path) if file_path else None
+
+    def get_next_prompt_id(self) -> Optional[str]:
+        """Get the ID of the next prompt that would be processed."""
+        if not self.state:
+            self.state = self.storage.load_queue_state()
+
+        # Check rate-limited prompts like the queue processor does
+        self._check_rate_limited_prompts()
+
+        next_prompt = self.state.get_next_prompt()
+        return next_prompt.id if next_prompt else None
