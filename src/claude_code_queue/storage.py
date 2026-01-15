@@ -97,10 +97,6 @@ class MarkdownPromptParser:
                 metadata["estimated_tokens"] = prompt.estimated_tokens
             if prompt.last_executed:
                 metadata["last_executed"] = prompt.last_executed.isoformat()
-            if prompt.rate_limited_at:
-                metadata["rate_limited_at"] = prompt.rate_limited_at.isoformat()
-            if prompt.reset_time:
-                metadata["reset_time"] = prompt.reset_time.isoformat()
             if prompt.permission_mode:
                 metadata["permission_mode"] = prompt.permission_mode
             if prompt.allowed_tools:
@@ -217,17 +213,8 @@ class QueueStorage:
                 prompts.append(prompt)
                 processed_ids.add(prompt.id)
 
-        for file_path in self.queue_dir.glob("*.rate-limited.md"):
-            prompt = self.parser.parse_prompt_file(file_path)
-            if prompt:
-                prompt.status = PromptStatus.RATE_LIMITED
-                prompts.append(prompt)
-                processed_ids.add(prompt.id)
-
         for file_path in self.queue_dir.glob("*.md"):
-            if file_path.name.endswith(".executing.md") or file_path.name.endswith(
-                ".rate-limited.md"
-            ):
+            if file_path.name.endswith(".executing.md"):
                 continue
 
             prompt = self.parser.parse_prompt_file(file_path)
@@ -270,10 +257,6 @@ class QueueStorage:
             elif prompt.status == PromptStatus.EXECUTING:
                 target_dir = self.queue_dir
                 base_filename = base_filename.replace(".md", ".executing.md")
-                self._remove_prompt_files(prompt.id, self.queue_dir)
-            elif prompt.status == PromptStatus.RATE_LIMITED:
-                target_dir = self.queue_dir
-                base_filename = base_filename.replace(".md", ".rate-limited.md")
                 self._remove_prompt_files(prompt.id, self.queue_dir)
             else:  # QUEUED
                 target_dir = self.queue_dir
@@ -479,8 +462,6 @@ What should be delivered...
             template_prompt.retry_count = 0
             template_prompt.execution_log = ""
             template_prompt.last_executed = None
-            template_prompt.rate_limited_at = None
-            template_prompt.reset_time = None
 
             return template_prompt
 

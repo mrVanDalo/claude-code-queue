@@ -77,7 +77,7 @@ _claude_queue() {
                     ;;
                 list)
                     _arguments \
-                        '--status[Filter by status]:status:(queued executing completed failed cancelled rate_limited)' \
+                        '--status[Filter by status]:status:(queued executing completed failed cancelled)' \
                         '--json[Output as JSON]'
                     ;;
                 bank)

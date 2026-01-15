@@ -133,7 +133,14 @@ class QueueManager:
         previous_rate_limited_count = self.state.rate_limited_count if self.state else 0
         previous_last_processed = self.state.last_processed if self.state else None
 
-        self.state = self.storage.load_queue_state()
+        # fixme : this is very bad hack, and should be properly done.
+        # self.state should have a reload_queue_state function, which does this here internally.
+        if self.state:
+            current_rate_limit = self.state.current_rate_limit
+            self.state = self.storage.load_queue_state()
+            self.state.current_rate_limit = current_rate_limit
+        else:
+            self.state = self.storage.load_queue_state()
 
         self.state.total_processed = max(
             self.state.total_processed, previous_total_processed
@@ -148,34 +155,35 @@ class QueueManager:
         ):
             self.state.last_processed = previous_last_processed
 
-        self._check_rate_limited_prompts()
+        # Check if rate limit has expired
+        if self.state.clear_rate_limit_if_expired():
+            print("Rate limit expired, resuming queue processing")
 
         next_prompt = self.state.get_next_prompt()
 
         if next_prompt is None:
-            rate_limited_prompts = [
-                p for p in self.state.prompts if p.status == PromptStatus.RATE_LIMITED
-            ]
-            if rate_limited_prompts:
-                # Find the earliest reset time
-                prompts_with_reset = [p for p in rate_limited_prompts if p.reset_time]
-                if prompts_with_reset:
+            # Check if we're rate limited
+            if self.state.is_rate_limited():
+                queued_count = len(
+                    [p for p in self.state.prompts if p.status == PromptStatus.QUEUED]
+                )
+                if (
+                    self.state.current_rate_limit
+                    and self.state.current_rate_limit.reset_time
+                ):
                     now = datetime.now()
-                    earliest_reset = min(p.reset_time for p in prompts_with_reset)
-                    seconds_until_reset = (earliest_reset - now).total_seconds()
+                    seconds_until_reset = (
+                        self.state.current_rate_limit.reset_time - now
+                    ).total_seconds()
                     if seconds_until_reset > 0:
                         reset_str = self._format_duration(seconds_until_reset)
                         print(
-                            f"Waiting for rate limit reset ({len(rate_limited_prompts)} prompts, next reset in {reset_str})"
+                            f"Rate limited ({queued_count} prompts queued, reset in {reset_str})"
                         )
                     else:
-                        print(
-                            f"Waiting for rate limit reset ({len(rate_limited_prompts)} prompts rate limited)"
-                        )
+                        print(f"Rate limited ({queued_count} prompts queued)")
                 else:
-                    print(
-                        f"Waiting for rate limit reset ({len(rate_limited_prompts)} prompts rate limited)"
-                    )
+                    print(f"Rate limited ({queued_count} prompts queued)")
             else:
                 print("No prompts in queue")
 
@@ -190,18 +198,6 @@ class QueueManager:
 
         if callback:
             callback(self.state)
-
-    def _check_rate_limited_prompts(self) -> None:
-        """Check if any rate-limited prompts have exceeded max retries."""
-        # The reset time checking is now handled by should_execute_now() in models.py
-        # This method only handles the case where max retries are exceeded
-        for prompt in self.state.prompts:
-            if prompt.status == PromptStatus.RATE_LIMITED:
-                # Check if this prompt has exceeded max retries
-                if not prompt.can_retry():
-                    prompt.status = PromptStatus.FAILED
-                    prompt.add_log(f"Max retries ({prompt.max_retries}) exceeded")
-                    print(f"✗ Prompt {prompt.id} failed - max retries exceeded")
 
     def _execute_prompt(self, prompt: QueuedPrompt) -> None:
         """Execute a single prompt."""
@@ -233,36 +229,27 @@ class QueueManager:
             print(f"✓ Prompt {prompt.id} completed successfully")
 
         elif result.is_rate_limited:
-            was_already_rate_limited = prompt.status == PromptStatus.RATE_LIMITED
-            prompt.status = PromptStatus.RATE_LIMITED
-            prompt.rate_limited_at = datetime.now()
-            prompt.retry_count += 1
-
-            # Store the reset time from the rate limit info
-            if result.rate_limit_info and result.rate_limit_info.reset_time:
-                prompt.reset_time = result.rate_limit_info.reset_time
-                time_until_reset = (prompt.reset_time - datetime.now()).total_seconds()
-                hours = int(time_until_reset // 3600)
-                minutes = int((time_until_reset % 3600) // 60)
-                reset_str = f"~{hours}h {minutes}m" if hours > 0 else f"~{minutes}m"
-                prompt.add_log(
-                    f"{execution_summary} - RATE LIMITED (reset in {reset_str})"
-                )
-            else:
-                prompt.add_log(f"{execution_summary} - RATE LIMITED")
+            # Keep prompt in queued state - rate limit is a daemon-level concern
+            prompt.status = PromptStatus.QUEUED
+            prompt.add_log(
+                f"{execution_summary} - RATE LIMITED (will retry when limit resets)"
+            )
 
             if result.rate_limit_info and result.rate_limit_info.limit_message:
                 prompt.add_log(f"Message: {result.rate_limit_info.limit_message}")
 
-            if not was_already_rate_limited and self.state is not None:
-                self.state.rate_limited_count += 1
+            # Set daemon-level rate limit
+            self.state.current_rate_limit = result.rate_limit_info
+            self.state.rate_limited_count += 1
 
-            if prompt.reset_time:
-                time_until_reset = (prompt.reset_time - datetime.now()).total_seconds()
+            if result.rate_limit_info and result.rate_limit_info.reset_time:
+                time_until_reset = (
+                    result.rate_limit_info.reset_time - datetime.now()
+                ).total_seconds()
                 reset_str = self._format_duration(time_until_reset)
-                print(f"⚠ Prompt {prompt.id} rate limited, will retry in {reset_str}")
+                print(f"⚠ Rate limited, will resume in {reset_str}")
             else:
-                print(f"⚠ Prompt {prompt.id} rate limited, will retry later")
+                print("⚠ Rate limited, will retry later")
 
         else:
             prompt.retry_count += 1
@@ -310,44 +297,42 @@ class QueueManager:
         if not self.state:
             return self.check_interval
 
-        # Check if there are any queued prompts ready to execute
+        # Check if we're rate limited at the daemon level
+        if self.state.is_rate_limited():
+            if (
+                self.state.current_rate_limit
+                and self.state.current_rate_limit.reset_time
+            ):
+                now = datetime.now()
+                seconds_until_reset = (
+                    self.state.current_rate_limit.reset_time - now
+                ).total_seconds()
+
+                if seconds_until_reset <= 0:
+                    # Reset time has passed, check immediately
+                    return 0
+
+                # Wait until reset time, but cap at check_interval to allow for interrupts
+                # Add a small buffer (5 seconds) to ensure we don't check too early
+                wait_time = min(seconds_until_reset + 5, self.check_interval)
+
+                # If the wait time is significant, log it
+                if wait_time > 60:
+                    reset_str = self._format_duration(seconds_until_reset)
+                    print(f"Waiting {reset_str} until rate limit reset...")
+
+                return int(wait_time)
+
+        # Check if there are any queued prompts
         queued_prompts = [
             p for p in self.state.prompts if p.status == PromptStatus.QUEUED
         ]
-        if queued_prompts:
-            # If there are queued prompts, use the normal check interval
-            return self.check_interval
-
-        # Check for rate-limited prompts and find the earliest reset time
-        rate_limited_prompts = [
-            p
-            for p in self.state.prompts
-            if p.status == PromptStatus.RATE_LIMITED and p.reset_time
-        ]
-
-        if not rate_limited_prompts:
+        if not queued_prompts:
             # No prompts waiting, use normal check interval
             return self.check_interval
 
-        # Find the earliest reset time
-        now = datetime.now()
-        earliest_reset = min(p.reset_time for p in rate_limited_prompts)
-        seconds_until_reset = (earliest_reset - now).total_seconds()
-
-        if seconds_until_reset <= 0:
-            # Reset time has passed, check immediately
-            return 0
-
-        # Wait until reset time, but cap at check_interval to allow for interrupts
-        # Add a small buffer (5 seconds) to ensure we don't check too early
-        wait_time = min(seconds_until_reset + 5, self.check_interval)
-
-        # If the wait time is significant, log it
-        if wait_time > 60:
-            reset_str = self._format_duration(seconds_until_reset)
-            print(f"Waiting {reset_str} until next rate limit reset...")
-
-        return int(wait_time)
+        # If there are queued prompts and no rate limit, use the normal check interval
+        return self.check_interval
 
     def add_prompt(self, prompt: QueuedPrompt) -> bool:
         """Add a prompt to the queue."""
@@ -560,31 +545,22 @@ class QueueManager:
         return success
 
     def get_rate_limit_info(self) -> Dict[str, Any]:
-        """Get basic rate limit information for testing."""
+        """Get rate limit information."""
         if not self.state:
             self.state = self.storage.load_queue_state()
 
         current_time = datetime.now()
-        rate_limited_prompts = [
-            p for p in self.state.prompts if p.status == PromptStatus.RATE_LIMITED
-        ]
+        is_rate_limited = self.state.is_rate_limited()
 
         info = {
             "current_time": current_time,
-            "has_rate_limited_prompts": len(rate_limited_prompts) > 0,
-            "rate_limited_count": len(rate_limited_prompts),
-            "prompts": [],
+            "is_rate_limited": is_rate_limited,
+            "rate_limited_count": self.state.rate_limited_count,
         }
 
-        for prompt in rate_limited_prompts:
-            info["prompts"].append(
-                {
-                    "id": prompt.id,
-                    "rate_limited_at": prompt.rate_limited_at,
-                    "retry_count": prompt.retry_count,
-                    "max_retries": prompt.max_retries,
-                }
-            )
+        if is_rate_limited and self.state.current_rate_limit:
+            info["reset_time"] = self.state.current_rate_limit.reset_time
+            info["limit_message"] = self.state.current_rate_limit.limit_message
 
         return info
 
@@ -598,8 +574,8 @@ class QueueManager:
         if not self.state:
             self.state = self.storage.load_queue_state()
 
-        # Check rate-limited prompts like the queue processor does
-        self._check_rate_limited_prompts()
+        # Check if rate limit has expired
+        self.state.clear_rate_limit_if_expired()
 
         next_prompt = self.state.get_next_prompt()
         return next_prompt.id if next_prompt else None

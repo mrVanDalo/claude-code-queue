@@ -25,7 +25,6 @@ class TestPromptStatus:
             "COMPLETED",
             "FAILED",
             "CANCELLED",
-            "RATE_LIMITED",
         }
         actual = {status.name for status in PromptStatus}
         assert actual == expected
@@ -37,7 +36,6 @@ class TestPromptStatus:
         assert PromptStatus.COMPLETED.value == "completed"
         assert PromptStatus.FAILED.value == "failed"
         assert PromptStatus.CANCELLED.value == "cancelled"
-        assert PromptStatus.RATE_LIMITED.value == "rate_limited"
 
 
 class TestQueuedPrompt:
@@ -102,13 +100,6 @@ class TestQueuedPrompt:
         prompt = QueuedPrompt(status=PromptStatus.FAILED, retry_count=1, max_retries=3)
         assert prompt.can_retry() is True
 
-    def test_can_retry_when_rate_limited(self):
-        """Test can_retry returns True for rate limited prompts."""
-        prompt = QueuedPrompt(
-            status=PromptStatus.RATE_LIMITED, retry_count=1, max_retries=3
-        )
-        assert prompt.can_retry() is True
-
     def test_cannot_retry_when_max_retries_exceeded(self):
         """Test can_retry returns False when max retries exceeded."""
         prompt = QueuedPrompt(status=PromptStatus.FAILED, retry_count=3, max_retries=3)
@@ -128,33 +119,10 @@ class TestQueuedPrompt:
         )
         assert prompt.can_retry() is False
 
-    def test_should_execute_now_when_queued(self):
-        """Test should_execute_now returns True for queued prompts."""
-        prompt = QueuedPrompt(status=PromptStatus.QUEUED)
-        assert prompt.should_execute_now() is True
-
-    def test_should_execute_now_when_rate_limited_but_reset_time_passed(self):
-        """Test should_execute_now returns True when reset time has passed."""
-        past_time = datetime.now() - timedelta(hours=1)
-        prompt = QueuedPrompt(
-            status=PromptStatus.RATE_LIMITED,
-            reset_time=past_time,
-        )
-        assert prompt.should_execute_now() is True
-
-    def test_should_not_execute_when_rate_limited_and_reset_time_future(self):
-        """Test should_execute_now returns False when reset time is in future."""
-        future_time = datetime.now() + timedelta(hours=1)
-        prompt = QueuedPrompt(
-            status=PromptStatus.RATE_LIMITED,
-            reset_time=future_time,
-        )
-        assert prompt.should_execute_now() is False
-
-    def test_should_not_execute_when_rate_limited_no_reset_time(self):
-        """Test should_execute_now returns False when rate limited with no reset time."""
-        prompt = QueuedPrompt(status=PromptStatus.RATE_LIMITED)
-        assert prompt.should_execute_now() is False
+    def test_cannot_retry_when_queued(self):
+        """Test can_retry returns False for queued prompts."""
+        prompt = QueuedPrompt(status=PromptStatus.QUEUED, retry_count=0, max_retries=3)
+        assert prompt.can_retry() is False
 
 
 class TestRateLimitInfo:
@@ -314,39 +282,82 @@ class TestQueueState:
         next_prompt = state.get_next_prompt()
         assert next_prompt is None
 
-    def test_get_next_prompt_retries_rate_limited_after_reset(self):
-        """Test get_next_prompt returns rate limited prompt after reset time."""
-        state = QueueState()
-        past_time = datetime.now() - timedelta(hours=1)
-        prompt = QueuedPrompt(
-            id="1",
-            priority=5,
-            status=PromptStatus.RATE_LIMITED,
-            reset_time=past_time,
-            retry_count=1,
-            max_retries=3,
-        )
-        state.add_prompt(prompt)
-
-        next_prompt = state.get_next_prompt()
-        assert next_prompt is not None
-        assert next_prompt.id == "1"
-        assert next_prompt.status == PromptStatus.QUEUED  # Status reset for retry
-
-    def test_get_next_prompt_skips_rate_limited_future_reset(self):
-        """Test get_next_prompt skips rate limited with future reset time."""
+    def test_get_next_prompt_returns_none_when_rate_limited(self):
+        """Test get_next_prompt returns None when queue is rate limited."""
         state = QueueState()
         future_time = datetime.now() + timedelta(hours=1)
-        state.add_prompt(
-            QueuedPrompt(
-                id="1",
-                status=PromptStatus.RATE_LIMITED,
-                reset_time=future_time,
-            )
+        state.current_rate_limit = RateLimitInfo(
+            is_rate_limited=True,
+            reset_time=future_time,
         )
+        state.add_prompt(QueuedPrompt(id="1", priority=5, status=PromptStatus.QUEUED))
 
         next_prompt = state.get_next_prompt()
         assert next_prompt is None
+
+    def test_get_next_prompt_returns_prompt_after_rate_limit_expires(self):
+        """Test get_next_prompt returns prompt after rate limit expires."""
+        state = QueueState()
+        past_time = datetime.now() - timedelta(hours=1)
+        state.current_rate_limit = RateLimitInfo(
+            is_rate_limited=True,
+            reset_time=past_time,
+        )
+        state.add_prompt(QueuedPrompt(id="1", priority=5, status=PromptStatus.QUEUED))
+
+        # Rate limit should not block since reset_time is in the past
+        next_prompt = state.get_next_prompt()
+        assert next_prompt is not None
+        assert next_prompt.id == "1"
+
+    def test_is_rate_limited_returns_true_when_rate_limited(self):
+        """Test is_rate_limited returns True when rate limited."""
+        state = QueueState()
+        future_time = datetime.now() + timedelta(hours=1)
+        state.current_rate_limit = RateLimitInfo(
+            is_rate_limited=True,
+            reset_time=future_time,
+        )
+        assert state.is_rate_limited() is True
+
+    def test_is_rate_limited_returns_false_when_not_rate_limited(self):
+        """Test is_rate_limited returns False when not rate limited."""
+        state = QueueState()
+        assert state.is_rate_limited() is False
+
+    def test_is_rate_limited_returns_false_after_reset(self):
+        """Test is_rate_limited returns False after reset time passes."""
+        state = QueueState()
+        past_time = datetime.now() - timedelta(hours=1)
+        state.current_rate_limit = RateLimitInfo(
+            is_rate_limited=True,
+            reset_time=past_time,
+        )
+        assert state.is_rate_limited() is False
+
+    def test_clear_rate_limit_if_expired_clears_expired_limit(self):
+        """Test clear_rate_limit_if_expired clears expired limits."""
+        state = QueueState()
+        past_time = datetime.now() - timedelta(hours=1)
+        state.current_rate_limit = RateLimitInfo(
+            is_rate_limited=True,
+            reset_time=past_time,
+        )
+        result = state.clear_rate_limit_if_expired()
+        assert result is True
+        assert state.current_rate_limit is None
+
+    def test_clear_rate_limit_if_expired_keeps_active_limit(self):
+        """Test clear_rate_limit_if_expired keeps active limits."""
+        state = QueueState()
+        future_time = datetime.now() + timedelta(hours=1)
+        state.current_rate_limit = RateLimitInfo(
+            is_rate_limited=True,
+            reset_time=future_time,
+        )
+        result = state.clear_rate_limit_if_expired()
+        assert result is False
+        assert state.current_rate_limit is not None
 
     def test_get_stats_empty_queue(self):
         """Test get_stats with empty queue."""
@@ -365,16 +376,14 @@ class TestQueueState:
         state.add_prompt(QueuedPrompt(id="1", status=PromptStatus.QUEUED))
         state.add_prompt(QueuedPrompt(id="2", status=PromptStatus.QUEUED))
         state.add_prompt(QueuedPrompt(id="3", status=PromptStatus.EXECUTING))
-        state.add_prompt(QueuedPrompt(id="4", status=PromptStatus.RATE_LIMITED))
         state.total_processed = 10
         state.failed_count = 2
 
         stats = state.get_stats()
 
-        assert stats["total_prompts"] == 4
+        assert stats["total_prompts"] == 3
         assert stats["status_counts"]["queued"] == 2
         assert stats["status_counts"]["executing"] == 1
-        assert stats["status_counts"]["rate_limited"] == 1
         assert stats["status_counts"]["completed"] == 10
         assert stats["status_counts"]["failed"] == 2
         assert stats["total_processed"] == 10

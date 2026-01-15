@@ -284,21 +284,6 @@ class TestQueueStorage:
         files = list(storage.queue_dir.glob("test-456*.executing.md"))
         assert len(files) == 1
 
-    def test_save_single_prompt_rate_limited(self, tmp_path):
-        """Test saving a rate limited prompt."""
-        storage = QueueStorage(str(tmp_path / "queue"))
-        prompt = QueuedPrompt(
-            id="test-789",
-            content="Rate limited prompt",
-            status=PromptStatus.RATE_LIMITED,
-        )
-
-        storage._save_single_prompt(prompt)
-
-        # Check file has .rate-limited suffix
-        files = list(storage.queue_dir.glob("test-789*.rate-limited.md"))
-        assert len(files) == 1
-
     def test_save_single_prompt_completed(self, tmp_path):
         """Test saving a completed prompt moves it to completed directory."""
         storage = QueueStorage(str(tmp_path / "queue"))
@@ -336,17 +321,15 @@ class TestQueueStorage:
         # Create some test files
         (storage.queue_dir / "test1-prompt.md").write_text("# Test 1")
         (storage.queue_dir / "test2-prompt.executing.md").write_text("# Test 2")
-        (storage.queue_dir / "test3-prompt.rate-limited.md").write_text("# Test 3")
 
         prompts = storage._load_prompts_from_files()
 
-        assert len(prompts) == 3
+        assert len(prompts) == 2
 
         # Check statuses are set correctly
         statuses = {p.id: p.status for p in prompts}
         assert statuses["test1"] == PromptStatus.QUEUED
         assert statuses["test2"] == PromptStatus.EXECUTING
-        assert statuses["test3"] == PromptStatus.RATE_LIMITED
 
     def test_remove_prompt_files(self, tmp_path):
         """Test removing all files for a prompt ID."""

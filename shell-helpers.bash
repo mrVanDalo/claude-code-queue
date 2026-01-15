@@ -256,7 +256,7 @@ if [ -n "$BASH_VERSION" ]; then
                 return 0
                 ;;
             --status)
-                COMPREPLY=($(compgen -W "queued executing completed failed cancelled rate_limited" -- "${cur}"))
+                COMPREPLY=($(compgen -W "queued executing completed failed cancelled" -- "${cur}"))
                 return 0
                 ;;
             --permission-mode)

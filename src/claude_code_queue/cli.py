@@ -379,7 +379,6 @@ def cmd_status(manager: QueueManager, args) -> int:
                     PromptStatus.EXECUTING: "▶️",
                     PromptStatus.COMPLETED: "✅",
                     PromptStatus.CANCELLED: "🚫",
-                    PromptStatus.RATE_LIMITED: "⚠️",
                 }.get(prompt.status, "❓")
 
                 print(
@@ -482,7 +481,6 @@ def cmd_list(manager: QueueManager, args) -> int:
                 PromptStatus.COMPLETED: "✅",
                 PromptStatus.FAILED: "❌",
                 PromptStatus.CANCELLED: "🚫",
-                PromptStatus.RATE_LIMITED: "⚠️",
             }.get(prompt.status, "❓")
 
             print(

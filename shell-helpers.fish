@@ -279,7 +279,7 @@ complete -c claude-queue -n "__fish_seen_subcommand_from status" -l json -d "Out
 complete -c claude-queue -n "__fish_seen_subcommand_from status" -s d -l detailed -d "Show detailed prompt info"
 
 # list options
-complete -c claude-queue -n "__fish_seen_subcommand_from list" -l status -d "Filter by status" -r -a "queued executing completed failed cancelled rate_limited"
+complete -c claude-queue -n "__fish_seen_subcommand_from list" -l status -d "Filter by status" -r -a "queued executing completed failed cancelled"
 complete -c claude-queue -n "__fish_seen_subcommand_from list" -l json -d "Output as JSON"
 
 # bank subcommands

@@ -92,7 +92,6 @@ def temp_queue_dir(tmp_path):
     (queue_dir / "completed").mkdir()
     (queue_dir / "failed").mkdir()
     (queue_dir / "cancelled").mkdir()
-    (queue_dir / "rate_limited").mkdir()
     return queue_dir
 
 

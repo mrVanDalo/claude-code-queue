@@ -17,7 +17,6 @@ class PromptStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
-    RATE_LIMITED = "rate_limited"
 
 
 VALID_PERMISSION_MODES = {
@@ -46,8 +45,6 @@ class QueuedPrompt:
     execution_log: str = ""
     estimated_tokens: Optional[int] = None
     last_executed: Optional[datetime] = None
-    rate_limited_at: Optional[datetime] = None
-    reset_time: Optional[datetime] = None
     permission_mode: Optional[str] = None  # "acceptEdits", "bypassPermissions", etc.
     allowed_tools: Optional[List[str]] = None  # ["Edit", "Write", "Bash(git:*)"]
     timeout: Optional[int] = None  # Per-prompt timeout override
@@ -71,20 +68,9 @@ class QueuedPrompt:
 
     def can_retry(self) -> bool:
         """Check if this prompt can be retried."""
-        return self.retry_count < self.max_retries and self.status in [
-            PromptStatus.FAILED,
-            PromptStatus.RATE_LIMITED,
-        ]
-
-    def should_execute_now(self) -> bool:
-        """Check if this prompt should be executed now (not rate limited)."""
-        if self.status != PromptStatus.RATE_LIMITED:
-            return True
-
-        if self.reset_time and datetime.now() >= self.reset_time:
-            return True
-
-        return False
+        return (
+            self.retry_count < self.max_retries and self.status == PromptStatus.FAILED
+        )
 
 
 @dataclass
@@ -133,29 +119,40 @@ class QueueState:
     rate_limited_count: int = 0
     current_rate_limit: Optional[RateLimitInfo] = None
 
+    def is_rate_limited(self) -> bool:
+        """Check if the queue is currently rate limited."""
+        if not self.current_rate_limit:
+            return False
+        if not self.current_rate_limit.is_rate_limited:
+            return False
+        # Check if rate limit has expired
+        if self.current_rate_limit.reset_time:
+            return datetime.now() < self.current_rate_limit.reset_time
+        return True
+
+    def clear_rate_limit_if_expired(self) -> bool:
+        """Clear rate limit if it has expired. Returns True if cleared."""
+        if not self.current_rate_limit or not self.current_rate_limit.is_rate_limited:
+            return False
+        if (
+            self.current_rate_limit.reset_time
+            and datetime.now() >= self.current_rate_limit.reset_time
+        ):
+            self.current_rate_limit = None
+            return True
+        return False
+
     def get_next_prompt(self) -> Optional[QueuedPrompt]:
-        """Get the next prompt to execute (highest priority, can execute now)."""
+        """Get the next prompt to execute (highest priority, not rate limited)."""
+        # Don't return any prompt if we're rate limited
+        if self.is_rate_limited():
+            return None
+
         executable_prompts = [
-            p
-            for p in self.prompts
-            if p.status == PromptStatus.QUEUED and p.should_execute_now()
+            p for p in self.prompts if p.status == PromptStatus.QUEUED
         ]
 
         if not executable_prompts:
-            # Check for rate-limited prompts that can now be retried
-            retry_prompts = [
-                p
-                for p in self.prompts
-                if p.status == PromptStatus.RATE_LIMITED
-                and p.should_execute_now()
-                and p.can_retry()
-            ]
-            if retry_prompts:
-                # Reset status for retry
-                prompt = min(retry_prompts, key=lambda p: p.priority)
-                prompt.status = PromptStatus.QUEUED
-                return prompt
-
             return None
 
         # Return highest priority prompt (lowest number)

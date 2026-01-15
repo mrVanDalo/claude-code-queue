@@ -127,84 +127,6 @@ class TestQueueManager:
         # No execution should occur
         mock_storage.save_queue_state.assert_not_called()
 
-    @patch("claude_code_queue.queue_manager.ClaudeCodeInterface")
-    @patch("claude_code_queue.queue_manager.QueueStorage")
-    def test_check_rate_limited_prompts_retry_after_time(
-        self, mock_storage_class, mock_interface_class
-    ):
-        """Test rate limited prompts are retried after waiting period."""
-        manager = QueueManager()
-
-        # Create rate limited prompt from 6 minutes ago
-        past_time = datetime.now() - timedelta(minutes=6)
-        prompt = QueuedPrompt(
-            id="test",
-            status=PromptStatus.RATE_LIMITED,
-            rate_limited_at=past_time,
-            retry_count=0,
-            max_retries=3,
-        )
-
-        manager.state = QueueState()
-        manager.state.prompts = [prompt]
-
-        manager._check_rate_limited_prompts()
-
-        # Prompt should be reset to queued for retry
-        assert prompt.status == PromptStatus.QUEUED
-
-    @patch("claude_code_queue.queue_manager.ClaudeCodeInterface")
-    @patch("claude_code_queue.queue_manager.QueueStorage")
-    def test_check_rate_limited_prompts_no_retry_before_time(
-        self, mock_storage_class, mock_interface_class
-    ):
-        """Test rate limited prompts are not retried too early."""
-        manager = QueueManager()
-
-        # Create rate limited prompt from 2 minutes ago
-        recent_time = datetime.now() - timedelta(minutes=2)
-        prompt = QueuedPrompt(
-            id="test",
-            status=PromptStatus.RATE_LIMITED,
-            rate_limited_at=recent_time,
-            retry_count=0,
-            max_retries=3,
-        )
-
-        manager.state = QueueState()
-        manager.state.prompts = [prompt]
-
-        manager._check_rate_limited_prompts()
-
-        # Prompt should still be rate limited
-        assert prompt.status == PromptStatus.RATE_LIMITED
-
-    @patch("claude_code_queue.queue_manager.ClaudeCodeInterface")
-    @patch("claude_code_queue.queue_manager.QueueStorage")
-    def test_check_rate_limited_prompts_respects_max_retries(
-        self, mock_storage_class, mock_interface_class
-    ):
-        """Test rate limited prompts respect max retry limit."""
-        manager = QueueManager()
-
-        # Create rate limited prompt with max retries exceeded
-        past_time = datetime.now() - timedelta(minutes=10)
-        prompt = QueuedPrompt(
-            id="test",
-            status=PromptStatus.RATE_LIMITED,
-            rate_limited_at=past_time,
-            retry_count=3,
-            max_retries=3,
-        )
-
-        manager.state = QueueState()
-        manager.state.prompts = [prompt]
-
-        manager._check_rate_limited_prompts()
-
-        # Prompt should be marked as failed, not retried
-        assert prompt.status == PromptStatus.FAILED
-
 
 class TestQueueManagerExecutionLifecycle:
     """Test prompt execution lifecycle in QueueManager."""
@@ -295,8 +217,10 @@ class TestQueueManagerExecutionLifecycle:
 
         manager._execute_prompt(prompt)
 
-        assert prompt.status == PromptStatus.RATE_LIMITED
-        assert prompt.rate_limited_at is not None
+        # Prompt stays queued, daemon-level rate limit is set
+        assert prompt.status == PromptStatus.QUEUED
+        assert manager.state.current_rate_limit is not None
+        assert manager.state.current_rate_limit.is_rate_limited is True
         assert "rate limit" in prompt.execution_log.lower()
 
     @patch("claude_code_queue.queue_manager.ClaudeCodeInterface")
