@@ -538,8 +538,15 @@ class QueueManager:
             print(f"Error retrying prompt: {e}")
             return False
 
-    def get_status(self) -> QueueState:
-        """Get current queue status."""
+    def get_status(self, include_completed: bool = False) -> QueueState:
+        """Get current queue status.
+
+        Args:
+            include_completed: If True, also load completed prompts.
+        """
+        if include_completed:
+            # Always reload from storage when including completed to get fresh data
+            return self.storage.load_queue_state(include_completed=True)
         if not self.state:
             self.state = self.storage.load_queue_state()
         return self.state

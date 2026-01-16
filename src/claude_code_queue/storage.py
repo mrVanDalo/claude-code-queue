@@ -153,8 +153,12 @@ class QueueStorage:
 
         self.parser = MarkdownPromptParser()
 
-    def load_queue_state(self) -> QueueState:
-        """Load queue state from storage."""
+    def load_queue_state(self, include_completed: bool = False) -> QueueState:
+        """Load queue state from storage.
+
+        Args:
+            include_completed: If True, also load completed prompts from the completed directory.
+        """
         state = QueueState()
 
         if self.state_file.exists():
@@ -174,7 +178,9 @@ class QueueStorage:
             except Exception as e:
                 print(f"Error loading queue state: {e}")
 
-        state.prompts = self._load_prompts_from_files()
+        state.prompts = self._load_prompts_from_files(
+            include_completed=include_completed
+        )
 
         return state
 
@@ -202,7 +208,9 @@ class QueueStorage:
             print(f"Error saving queue state: {e}")
             return False
 
-    def _load_prompts_from_files(self) -> List[QueuedPrompt]:
+    def _load_prompts_from_files(
+        self, include_completed: bool = False
+    ) -> List[QueuedPrompt]:
         """Load all prompts from markdown files."""
         prompts = []
         processed_ids = set()
@@ -233,6 +241,15 @@ class QueueStorage:
                 prompt.status = PromptStatus.FAILED
                 prompts.append(prompt)
                 processed_ids.add(prompt.id)
+
+        # Load completed prompts if requested
+        if include_completed:
+            for file_path in self.completed_dir.glob("*.md"):
+                prompt = self.parser.parse_prompt_file(file_path)
+                if prompt and prompt.id not in processed_ids:
+                    prompt.status = PromptStatus.COMPLETED
+                    prompts.append(prompt)
+                    processed_ids.add(prompt.id)
 
         return prompts
 

@@ -169,6 +169,9 @@ Examples:
         "--status", choices=[s.value for s in PromptStatus], help="Filter by status"
     )
     list_parser.add_argument("--json", action="store_true", help="Output as JSON")
+    list_parser.add_argument(
+        "--all", "-a", action="store_true", help="Include completed prompts"
+    )
 
     test_parser = subparsers.add_parser("test", help="Test Claude Code connection")
 
@@ -397,7 +400,8 @@ def cmd_path(manager: QueueManager, args) -> int:
 
 def cmd_list(manager: QueueManager, args) -> int:
     """List prompts."""
-    state = manager.get_status()
+    include_completed = getattr(args, "all", False)
+    state = manager.get_status(include_completed=include_completed)
     prompts = state.prompts
 
     if args.status:
