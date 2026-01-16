@@ -94,14 +94,6 @@ pytest
 - `requirements.txt` - Python dependencies (also defined in flake.nix)
 - `treefmt.nix` - Code formatting configuration
 
-## Workflow for Starting a Task
-
-Before starting any task, create a new Jujutsu branch:
-
-```bash
-jj new -m "<summary of task>" main
-```
-
 This creates a new change based on main with a descriptive message summarizing the task.
 
 ## Testing Changes
