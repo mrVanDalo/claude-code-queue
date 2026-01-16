@@ -515,11 +515,6 @@ class QueueManager:
             self.state = self.storage.load_queue_state()
         return self.state
 
-    def create_prompt_template(self, filename: str, priority: int = 0) -> str:
-        """Create a prompt template file."""
-        file_path = self.storage.create_prompt_template(filename, priority)
-        return str(file_path)
-
     def get_rate_limit_info(self) -> Dict[str, Any]:
         """Get rate limit information."""
         if not self.state:

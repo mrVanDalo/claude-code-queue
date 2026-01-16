@@ -27,9 +27,6 @@ Examples:
   # Add a quick prompt
   claude-queue add "Fix the authentication bug" --priority 1
 
-  # Create a template for detailed prompt
-  claude-queue template my-feature --priority 2
-
   # Check queue status
   claude-queue status
 
@@ -141,16 +138,6 @@ Examples:
         help="jj bookmark name for dependent queue items",
     )
 
-    template_parser = subparsers.add_parser(
-        "template", help="Create a prompt template file"
-    )
-    template_parser.add_argument(
-        "filename", help="Template filename (without .md extension)"
-    )
-    template_parser.add_argument(
-        "--priority", "-p", type=int, default=0, help="Default priority"
-    )
-
     status_parser = subparsers.add_parser("status", help="Show queue status")
     status_parser.add_argument("--json", action="store_true", help="Output as JSON")
     status_parser.add_argument(
@@ -205,8 +192,6 @@ Examples:
             return cmd_next(manager, args)
         elif args.command == "add":
             return cmd_add(manager, args)
-        elif args.command == "template":
-            return cmd_template(manager, args)
         elif args.command == "status":
             return cmd_status(manager, args)
         elif args.command == "cancel":
@@ -274,14 +259,6 @@ def cmd_add(manager: QueueManager, args) -> int:
 
     success = manager.add_prompt(prompt)
     return 0 if success else 1
-
-
-def cmd_template(manager: QueueManager, args) -> int:
-    """Create a prompt template file."""
-    file_path = manager.create_prompt_template(args.filename, args.priority)
-    print(f"Created template: {file_path}")
-    print("Edit the file and it will be automatically picked up by the queue processor")
-    return 0
 
 
 def cmd_status(manager: QueueManager, args) -> int:

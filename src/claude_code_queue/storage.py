@@ -325,41 +325,6 @@ class QueueStorage:
             return prompt
         return None
 
-    def create_prompt_template(self, filename: str, priority: int = 0) -> Path:
-        """Create a prompt template file."""
-        template_content = f"""---
-priority: {priority}
-working_directory: .
-context_files: []
-max_retries: 3
-estimated_tokens: null
-# Permission mode: acceptEdits (default), bypassPermissions, default, delegate, dontAsk, plan
-# permission_mode: acceptEdits
-# Allowed tools: ["Edit", "Write", "Read", "Bash(git:*)"]
-# allowed_tools: []
-# Timeout in seconds (overrides global --timeout)
-# timeout: 3600
-# Model to use: sonnet (default), opus, haiku
-# model: sonnet
----
-
-# Prompt Title
-
-Write your prompt here...
-
-## Context
-Any additional context or requirements...
-
-## Expected Output
-What should be delivered...
-"""
-
-        file_path = self.queue_dir / f"{filename}.md"
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(template_content)
-
-        return file_path
-
     def get_prompt_path(self, prompt_id: str) -> Optional[Path]:
         """Get the file path for a prompt by ID."""
         # Search in all directories
