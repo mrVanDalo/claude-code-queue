@@ -10,23 +10,12 @@ A tool to queue Claude Code prompts and automatically execute them when token li
 - **Retry Logic**: Automatically retry failed prompts
 - **Persistent Storage**: Queue survives system restarts
 - **CLI Interface**: Simple command-line interface
+- **Jujutsu Integration**: Auto-create jj changes for prompts in jj repositories
+- **Model Selection**: Choose between Sonnet, Opus, and Haiku models
 
 ## Installation
 
-```bash
-pip install claude-code-queue
-```
-
-Or, for local development:
-
-```bash
-cd claude-code-queue
-pip install -e .
-```
-
-### NixOS / Nix Flakes
-
-If you're using Nix, you can install and run this project using the flake:
+### NixOS / Nix Flakes (Recommended)
 
 ```bash
 # Run directly without installing
@@ -42,14 +31,12 @@ nix profile install github:mrVanDalo/claude-code-queue
 nix develop
 ```
 
-For NixOS, add to your `configuration.nix`:
+For NixOS, add to your `flake.nix` inputs and use the package.
 
-```nix
-{
-  environment.systemPackages = [
-    (pkgs.callPackage ./path/to/claude-code-queue {})
-  ];
-}
+### PyPI
+
+```bash
+pip install claude-code-queue
 ```
 
 ## Shell Helper Functions
@@ -122,6 +109,18 @@ After installation, use the `claude-queue` command:
 claude-queue add "Implement user authentication" --priority 1 --working-dir /path/to/project
 ```
 
+**With model selection:**
+
+```bash
+claude-queue add "Complex refactoring task" --model opus --priority 1
+```
+
+**With jj bookmark (for Jujutsu repositories):**
+
+```bash
+claude-queue add "Add new feature" --bookmark feature-branch --working-dir /path/to/jj-repo
+```
+
 **Template for detailed prompt:**
 
 ```bash
@@ -137,6 +136,11 @@ working_directory: .
 context_files: []
 max_retries: 3
 estimated_tokens: null
+permission_mode: acceptEdits
+allowed_tools: []
+timeout: 3600
+model: sonnet
+bookmark: null
 ---
 
 # Prompt Title
@@ -172,6 +176,12 @@ claude-queue list --status queued
 claude-queue cancel abc123
 ```
 
+**Delete prompts permanently:**
+
+```bash
+claude-queue delete abc123 def456
+```
+
 ### Running the Queue
 
 **Start processing:**
@@ -186,11 +196,18 @@ claude-queue start
 claude-queue start --verbose
 ```
 
+**Process single item:**
+
+```bash
+claude-queue next
+```
+
 ## How It Works
 
 1. **Queue Processing**: Runs prompts in priority order (lower number = higher priority)
 1. **Rate Limit Detection**: Monitors Claude Code output for rate limit messages
-1. **Automatic Waiting**: When rate limited, waits for the next 5-hour window
+1. **Smart Reset Estimation**: Estimates reset time based on 5-hour windows (5am, 10am, 3pm, 8pm)
+1. **Automatic Waiting**: When rate limited, waits until estimated reset time then resumes
 1. **Retry Logic**: Failed prompts are retried up to `max_retries` times
 1. **File Organization**:
    - `~/.claude-queue/queue/` - Pending prompts
@@ -233,6 +250,8 @@ allowed_tools:                   # Specific tools to allow (optional)
     - Read
     - Bash(git:*)
 timeout: 3600                    # Timeout in seconds (optional)
+model: sonnet                    # Model: sonnet, opus, or haiku
+bookmark: feature-branch         # jj bookmark name (optional)
 ---
 ```
 
@@ -251,6 +270,12 @@ timeout: 3600                    # Timeout in seconds (optional)
 - `["Bash(git:*)"]` - Only git commands
 - `["Edit", "Bash(npm:*)", "Bash(pytest:*)"]` - Edits and specific commands
 - Leave empty `[]` to allow no tools, or omit to allow all tools
+
+**Model Options:**
+
+- `sonnet` (default): Balanced speed and capability
+- `opus`: Most capable model
+- `haiku`: Fastest, most efficient model
 
 ## Examples
 
@@ -279,6 +304,7 @@ context_files:
     - docs/auth-requirements.md
 max_retries: 2
 estimated_tokens: 2000
+model: opus
 ---
 
 # Fix Authentication Bug
@@ -314,9 +340,28 @@ The system automatically detects Claude Code rate limits by monitoring:
 
 When rate limited:
 
-1. Prompt status changes to `rate_limited`
-1. Naively loop every fixed interval until rate limit is lifted (there's probably a way smarter way to find the end time of rate limit window， open to contributions)
-1. Once the rate limit is lifted, continue processing the requests
+1. Prompt returns to QUEUED status (preserving retry count)
+1. System estimates the next reset window (5-hour intervals)
+1. Waits until estimated reset time (with small buffer)
+1. Automatically resumes processing
+
+The rate limit state persists across restart, so the daemon remembers if it was rate limited.
+
+## Jujutsu (jj) Integration
+
+When working in a Jujutsu repository, claude-code-queue can automatically create new changes for each prompt execution:
+
+- **Automatic change creation**: Creates a new change based on `main` or specified bookmark
+- **Bookmark support**: Use `--bookmark` to specify which bookmark to base the change on
+- **Bookmark setting**: On successful execution, sets a bookmark on the resulting change
+- **Graceful degradation**: Works normally if jj is not available
+
+```bash
+# Add prompt with jj bookmark
+claude-queue add "Implement feature X" --bookmark feature-x --working-dir /path/to/jj-repo
+```
+
+See [JJ_INTEGRATION_IMPLEMENTATION.md](JJ_INTEGRATION_IMPLEMENTATION.md) for details.
 
 ## Troubleshooting
 
@@ -334,7 +379,7 @@ claude-queue status --detailed
 
 - Stop queue processor (Ctrl+C)
 - Restart with `claude-queue start`
-- Executing prompts will reset to queued status
+- Executing prompts will be processed on restart
 
 **Rate limit not detected:**
 

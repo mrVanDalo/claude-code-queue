@@ -103,7 +103,7 @@ chmod +x run_tests.sh
 - State persistence (save/load)
 - Prompt file organization by status
 - File moving between directories
-- Template bank operations (save, list, use, delete)
+- Template creation
 
 ### 3. Claude Interface (`test_claude_interface.py`)
 
@@ -138,8 +138,10 @@ chmod +x run_tests.sh
 - `status`: Queue statistics (text and JSON output)
 - `list`: Filtering by status
 - `cancel`: Prompt cancellation
+- `delete`: Permanent prompt deletion (supports multiple IDs)
+- `retry`: Retry failed prompts
+- `path`: Get prompt file path
 - `test`: Connection testing
-- `bank save/list/use/delete`: Template management
 
 ## Test Configuration
 
