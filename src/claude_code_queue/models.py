@@ -239,6 +239,9 @@ class ExecutionResult:
     execution_time: float = 0.0
     jj_bookmark_to_set: Optional[str] = None  # Bookmark to set on success
     jj_working_dir: Optional[str] = None  # Working directory for jj operations
+    no_changes_detected: bool = (
+        False  # True if jj detected no working directory changes
+    )
 
     @property
     def is_rate_limited(self) -> bool:

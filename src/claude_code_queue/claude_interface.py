@@ -116,13 +116,26 @@ class ClaudeCodeInterface:
                 cmd, capture_output=True, text=True, timeout=effective_timeout
             )
 
-            os.chdir(original_cwd)
-
             execution_time = time.time() - start_time
 
             rate_limit_info = self._detect_rate_limit(result.stdout + result.stderr)
 
             success = result.returncode == 0 and not rate_limit_info.is_rate_limited
+
+            # Check if the working directory has any changes (using jj if available)
+            # Only check if execution appeared successful (not rate limited)
+            no_changes_detected = False
+            if success and should_create:
+                # If jj was used to create a change, check if there are actual changes
+                has_changes, check_error = JujutsuIntegration.has_working_copy_changes(
+                    str(working_dir)
+                )
+                if check_error is None:
+                    # Successfully checked - if no changes, mark as such
+                    no_changes_detected = not has_changes
+                # If check failed, we can't determine - assume changes were made
+
+            os.chdir(original_cwd)
 
             return ExecutionResult(
                 success=success,
@@ -132,6 +145,7 @@ class ClaudeCodeInterface:
                 execution_time=execution_time,
                 jj_bookmark_to_set=jj_bookmark_to_set if success else None,
                 jj_working_dir=str(working_dir) if jj_bookmark_to_set else None,
+                no_changes_detected=no_changes_detected,
             )
 
         except subprocess.TimeoutExpired:

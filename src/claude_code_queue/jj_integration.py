@@ -228,3 +228,50 @@ class JujutsuIntegration:
             return False, "jj command not found in PATH"
         except Exception as e:
             return False, f"Error setting bookmark: {str(e)}"
+
+    @staticmethod
+    def has_working_copy_changes(working_dir: str) -> Tuple[bool, Optional[str]]:
+        """
+        Check if the working copy has any changes (modified, added, or removed files).
+
+        Uses 'jj diff --stat' to detect if there are any uncommitted changes
+        in the working directory.
+
+        Args:
+            working_dir: Path to the working directory
+
+        Returns:
+            Tuple of (has_changes, error_message_if_failed)
+            - (True, None) if there are changes
+            - (False, None) if there are no changes
+            - (False, "error message") if jj command failed
+        """
+        try:
+            # Check if this is a jj repository first
+            if not JujutsuIntegration.is_jj_repository(working_dir):
+                return False, "not a jj repository"
+
+            # Use jj diff to check for changes
+            result = subprocess.run(
+                ["jj", "diff"],
+                cwd=working_dir,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                return False, f"jj diff failed: {error_msg}"
+
+            # If there's any output from --stat, there are changes
+            # An empty diff produces no output
+            has_changes = bool(result.stdout.strip())
+            return has_changes, None
+
+        except subprocess.TimeoutExpired:
+            return False, "Timeout while checking for changes"
+        except FileNotFoundError:
+            return False, "jj command not found in PATH"
+        except Exception as e:
+            return False, f"Error checking for changes: {str(e)}"

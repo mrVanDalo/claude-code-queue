@@ -220,7 +220,8 @@ class QueueManager:
         """Process the result of prompt execution."""
         execution_summary = f"Execution completed in {result.execution_time:.1f}s"
 
-        if result.success:
+        if result.success and not result.no_changes_detected:
+            # True success: command succeeded AND changes were made to working directory
             prompt.status = PromptStatus.COMPLETED
             prompt.add_log(f"{execution_summary} - SUCCESS")
             if result.output:
@@ -247,6 +248,34 @@ class QueueManager:
             print(
                 f"✓ Prompt {prompt.id} completed successfully ({result.execution_time:.1f}s)"
             )
+
+        elif result.success and result.no_changes_detected:
+            # Command succeeded but no changes were made to the working directory
+            # Treat this as a failure and increment retry counter
+            prompt.retry_count += 1
+
+            if prompt.can_retry():
+                prompt.status = PromptStatus.QUEUED
+                prompt.add_log(
+                    f"{execution_summary} - NO CHANGES DETECTED (will retry)"
+                )
+                if result.output:
+                    prompt.add_log(f"Output:\n{result.output}")
+                print(
+                    f"⚠ Prompt {prompt.id} completed but no changes detected, will retry ({prompt.retry_count}/{prompt.max_retries}) ({result.execution_time:.1f}s)"
+                )
+            else:
+                prompt.status = PromptStatus.FAILED
+                prompt.add_log(
+                    f"{execution_summary} - NO CHANGES DETECTED (max retries exceeded)"
+                )
+                if result.output:
+                    prompt.add_log(f"Output:\n{result.output}")
+
+                self.state.failed_count += 1
+                print(
+                    f"✗ Prompt {prompt.id} failed (no changes detected) after {prompt.max_retries} attempts ({result.execution_time:.1f}s)"
+                )
 
         elif result.is_rate_limited:
             # Keep prompt in queued state - rate limit is a daemon-level concern
