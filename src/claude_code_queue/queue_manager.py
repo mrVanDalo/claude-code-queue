@@ -192,7 +192,7 @@ class QueueManager:
                 callback(self.state)
             return
 
-        print(f"Executing prompt {next_prompt.id}: {next_prompt.content[:50]}...")
+        print(f"⏳ Executing prompt {next_prompt.id}: {next_prompt.content[:50]}...")
         self._execute_prompt(next_prompt)
 
         self.storage.save_queue_state(self.state)
@@ -237,14 +237,16 @@ class QueueManager:
                     create=not bookmark_exists,
                 )
                 if success:
-                    print(f"  {message}")
+                    print(f"🥷 {message}")
                     prompt.add_log(f"jj bookmark: {message}")
                 else:
-                    print(f"  Warning: {message}")
+                    print(f"🥷 Warning: {message}")
                     prompt.add_log(f"jj bookmark warning: {message}")
 
             self.state.total_processed += 1
-            print(f"✓ Prompt {prompt.id} completed successfully")
+            print(
+                f"✓ Prompt {prompt.id} completed successfully ({result.execution_time:.1f}s)"
+            )
 
         elif result.is_rate_limited:
             # Keep prompt in queued state - rate limit is a daemon-level concern
@@ -278,7 +280,7 @@ class QueueManager:
                 if result.error:
                     prompt.add_log(f"Error: {result.error}")
                 print(
-                    f"✗ Prompt {prompt.id} failed, will retry ({prompt.retry_count}/{prompt.max_retries})"
+                    f"✗ Prompt {prompt.id} failed, will retry ({prompt.retry_count}/{prompt.max_retries}) ({result.execution_time:.1f}s)"
                 )
             else:
                 prompt.status = PromptStatus.FAILED
@@ -288,7 +290,7 @@ class QueueManager:
 
                 self.state.failed_count += 1
                 print(
-                    f"✗ Prompt {prompt.id} failed permanently after {prompt.max_retries} attempts"
+                    f"✗ Prompt {prompt.id} failed permanently after {prompt.max_retries} attempts ({result.execution_time:.1f}s)"
                 )
 
         self.state.last_processed = datetime.now()

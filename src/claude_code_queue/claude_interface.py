@@ -62,15 +62,15 @@ class ClaudeCodeInterface:
                     str(working_dir), prompt.id, prompt.content, prompt.bookmark
                 )
                 if success:
-                    print(f"  {message}")
+                    print(f"🥷 {message}")
                     # Track that we need to set the bookmark on success
                     if prompt.bookmark:
                         jj_bookmark_to_set = prompt.bookmark
                 else:
-                    print(f"  Warning: {message}")
+                    print(f"🥷 Warning: {message}")
             else:
                 if reason:
-                    print(f"  Skipping jj change creation: {reason}")
+                    print(f"🥷 Skipping jj change creation: {reason}")
 
             cmd = [
                 self.claude_command,
@@ -108,6 +108,9 @@ class ClaudeCodeInterface:
             effective_timeout = (
                 prompt.timeout if prompt.timeout is not None else self.timeout
             )
+
+            # Print the command being executed
+            print(f"🤖 {' '.join(cmd)}")
 
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=effective_timeout
