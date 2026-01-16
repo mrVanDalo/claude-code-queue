@@ -358,6 +358,7 @@ def cmd_status(manager: QueueManager, args) -> int:
                 print(
                     f"   {prompt.content[:70]}{'...' if len(prompt.content) > 70 else ''}"
                 )
+                print(f"   Working directory: {prompt.working_directory}")
                 if prompt.retry_count > 0:
                     print(f"   Retries: {prompt.retry_count}/{prompt.max_retries}")
                 print()
@@ -464,6 +465,7 @@ def cmd_list(manager: QueueManager, args) -> int:
             print(
                 f"   {prompt.content[:70]}{'...' if len(prompt.content) > 70 else ''}"
             )
+            print(f"   Working directory: {prompt.working_directory}")
             print(f"   Created: {prompt.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
 
     return 0
