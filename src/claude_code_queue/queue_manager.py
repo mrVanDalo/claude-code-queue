@@ -2,6 +2,7 @@
 Queue manager with execution loop.
 """
 
+import shutil
 import signal
 import time
 from datetime import datetime, timedelta
@@ -192,8 +193,11 @@ class QueueManager:
                 callback(self.state)
             return
 
+        self._print_separator()
+        print(f"📂 {next_prompt.working_directory}")
         print(f"⏳ Executing prompt {next_prompt.id}: {next_prompt.content[:50]}...")
         self._execute_prompt(next_prompt)
+        self._print_separator()
 
         self.storage.save_queue_state(self.state)
 
@@ -340,6 +344,14 @@ class QueueManager:
             if minutes == 0:
                 return f"{hours}h"
             return f"{hours}h {minutes}m"
+
+    def _print_separator(self) -> None:
+        """Print a dashed line across the terminal width."""
+        try:
+            width = shutil.get_terminal_size().columns
+        except Exception:
+            width = 80
+        print("-" * width)
 
     def _calculate_sleep_interval(self) -> int:
         """Calculate optimal sleep interval based on queue state and reset times."""

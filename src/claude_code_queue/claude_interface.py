@@ -109,8 +109,10 @@ class ClaudeCodeInterface:
                 prompt.timeout if prompt.timeout is not None else self.timeout
             )
 
-            # Print the command being executed
-            print(f"🤖 {' '.join(cmd)}")
+            # Print the command being executed (query on separate line for readability)
+            cmd_without_prompt = cmd[:-1]  # All args except the prompt
+            print(f"🤖 {' '.join(cmd_without_prompt)}")
+            print(f"   {full_prompt}")
 
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=effective_timeout

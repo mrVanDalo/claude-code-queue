@@ -448,6 +448,7 @@ def cmd_list(manager: QueueManager, args) -> int:
             )
             print(f"   Working directory: {prompt.working_directory}")
             print(f"   Created: {prompt.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            print()
 
     return 0
 
