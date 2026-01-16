@@ -149,15 +149,23 @@ class QueueState:
         if self.is_rate_limited():
             return None
 
-        executable_prompts = [
-            p for p in self.prompts if p.status == PromptStatus.QUEUED
+        # "continue" with executing prompts first
+        executing_prompts: List[QueuedPrompt] = [
+            prompt for prompt in self.prompts if prompt.status == PromptStatus.EXECUTING
+        ]
+        if executing_prompts:
+            return min(executing_prompts, key=lambda prompt: prompt.priority)
+
+        # next check for queued prompts
+        queued_prompts: List[QueuedPrompt] = [
+            prompt for prompt in self.prompts if prompt.status == PromptStatus.QUEUED
         ]
 
-        if not executable_prompts:
+        if not queued_prompts:
             return None
 
         # Return highest priority prompt (lowest number)
-        return min(executable_prompts, key=lambda p: p.priority)
+        return min(queued_prompts, key=lambda prompt: prompt.priority)
 
     def add_prompt(self, prompt: QueuedPrompt) -> None:
         """Add a prompt to the queue."""
