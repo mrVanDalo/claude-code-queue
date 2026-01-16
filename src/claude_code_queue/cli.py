@@ -36,8 +36,9 @@ Examples:
   # Cancel a prompt (marks as cancelled)
   claude-queue cancel abc123
 
-  # Permanently delete a prompt
+  # Permanently delete one or more prompts
   claude-queue delete abc123
+  claude-queue delete abc123 def456 ghi789
 
   # Test Claude Code connection
   claude-queue test
@@ -160,9 +161,9 @@ Examples:
     cancel_parser.add_argument("prompt_id", help="Prompt ID to cancel")
 
     delete_parser = subparsers.add_parser(
-        "delete", help="Permanently delete a prompt from storage"
+        "delete", help="Permanently delete one or more prompts from storage"
     )
-    delete_parser.add_argument("prompt_id", help="Prompt ID to delete")
+    delete_parser.add_argument("prompt_ids", nargs="+", help="Prompt ID(s) to delete")
 
     retry_parser = subparsers.add_parser("retry", help="Retry a failed prompt")
     retry_parser.add_argument("prompt_id", help="Prompt ID to retry")
@@ -371,9 +372,13 @@ def cmd_cancel(manager: QueueManager, args) -> int:
 
 
 def cmd_delete(manager: QueueManager, args) -> int:
-    """Permanently delete a prompt from storage."""
-    success = manager.delete_prompt(args.prompt_id)
-    return 0 if success else 1
+    """Permanently delete one or more prompts from storage."""
+    all_success = True
+    for prompt_id in args.prompt_ids:
+        success = manager.delete_prompt(prompt_id)
+        if not success:
+            all_success = False
+    return 0 if all_success else 1
 
 
 def cmd_retry(manager: QueueManager, args) -> int:
