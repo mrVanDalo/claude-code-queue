@@ -227,7 +227,6 @@ class TestQueueStorage:
         assert storage.queue_dir.exists()
         assert storage.completed_dir.exists()
         assert storage.failed_dir.exists()
-        assert storage.bank_dir.exists()
 
     def test_save_and_load_queue_state(self, tmp_path):
         """Test saving and loading queue state."""
@@ -380,77 +379,6 @@ class TestQueueStorage:
         assert "priority: 5" in content
         assert "Prompt Title" in content
         assert "permission_mode" in content
-
-    def test_save_prompt_to_bank(self, tmp_path):
-        """Test saving a template to bank."""
-        storage = QueueStorage(str(tmp_path / "queue"))
-
-        file_path = storage.save_prompt_to_bank("code-review", priority=3)
-
-        assert file_path.exists()
-        assert file_path.parent == storage.bank_dir
-        assert "Code Review" in file_path.read_text()
-
-    def test_list_bank_templates(self, tmp_path):
-        """Test listing bank templates."""
-        storage = QueueStorage(str(tmp_path / "queue"))
-
-        # Create some templates
-        storage.save_prompt_to_bank("template1", priority=5)
-        storage.save_prompt_to_bank("template2", priority=3)
-
-        templates = storage.list_bank_templates()
-
-        assert len(templates) == 2
-        assert templates[0]["name"] == "template1"
-        assert templates[1]["name"] == "template2"
-        assert templates[0]["priority"] == 5
-        assert templates[1]["priority"] == 3
-
-    def test_use_bank_template(self, tmp_path):
-        """Test using a bank template."""
-        storage = QueueStorage(str(tmp_path / "queue"))
-
-        # Create template
-        storage.save_prompt_to_bank("test-template", priority=7)
-
-        # Use template
-        prompt = storage.use_bank_template("test-template")
-
-        assert prompt is not None
-        assert prompt.status == PromptStatus.QUEUED
-        assert prompt.priority == 7
-        assert prompt.retry_count == 0
-        assert prompt.id  # Should have new ID
-        assert isinstance(prompt.created_at, datetime)
-
-    def test_use_nonexistent_bank_template(self, tmp_path):
-        """Test using a non-existent bank template."""
-        storage = QueueStorage(str(tmp_path / "queue"))
-
-        prompt = storage.use_bank_template("nonexistent")
-        assert prompt is None
-
-    def test_delete_bank_template(self, tmp_path):
-        """Test deleting a bank template."""
-        storage = QueueStorage(str(tmp_path / "queue"))
-
-        # Create template
-        storage.save_prompt_to_bank("to-delete", priority=1)
-
-        # Delete template
-        success = storage.delete_bank_template("to-delete")
-        assert success is True
-
-        # Verify it's gone
-        assert not (storage.bank_dir / "to-delete.md").exists()
-
-    def test_delete_nonexistent_bank_template(self, tmp_path):
-        """Test deleting a non-existent bank template."""
-        storage = QueueStorage(str(tmp_path / "queue"))
-
-        success = storage.delete_bank_template("nonexistent")
-        assert success is False
 
     def test_add_prompt_from_markdown(self, tmp_path):
         """Test adding a prompt from an existing markdown file."""

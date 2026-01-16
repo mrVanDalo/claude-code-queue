@@ -128,52 +128,6 @@ cqedit() {
     fi
 }
 
-# Bank operations
-# Usage: cqbank <command> [args...]
-cqbank() {
-    claude-queue bank "$@"
-}
-
-# Save template to bank
-# Usage: cqbsave <template_name> [priority]
-cqbsave() {
-    local template_name="$1"
-    local priority="${2:-0}"
-
-    if [ -z "$template_name" ]; then
-        echo "Usage: cqbsave <template_name> [priority]"
-        return 1
-    fi
-
-    claude-queue bank save "$template_name" --priority "$priority"
-}
-
-# List bank templates
-# Usage: cqblist [--json]
-cqblist() {
-    claude-queue bank list "$@"
-}
-
-# Use a bank template
-# Usage: cqbuse <template_name>
-cqbuse() {
-    if [ -z "$1" ]; then
-        echo "Usage: cqbuse <template_name>"
-        return 1
-    fi
-    claude-queue bank use "$1"
-}
-
-# Delete a bank template
-# Usage: cqbdel <template_name>
-cqbdel() {
-    if [ -z "$1" ]; then
-        echo "Usage: cqbdel <template_name>"
-        return 1
-    fi
-    claude-queue bank delete "$1"
-}
-
 # Create a template
 # Usage: cqtemplate <filename> [priority]
 cqtemplate() {
@@ -221,13 +175,6 @@ Prompt Management:
 
 Template Management:
   cqtemplate <name> [priority]   - Create a template
-  cqbank <command> [args...]     - Bank operations
-
-Bank Operations:
-  cqbsave <name> [priority]      - Save template to bank
-  cqblist [--json]               - List bank templates
-  cqbuse <name>                  - Use a bank template
-  cqbdel <name>                  - Delete a bank template
 
 Other:
   cqtest                         - Test Claude Code connection
@@ -244,15 +191,11 @@ if [ -n "$BASH_VERSION" ]; then
         local cur prev commands
         cur="${COMP_WORDS[COMP_CWORD]}"
         prev="${COMP_WORDS[COMP_CWORD-1]}"
-        commands="start next add template status cancel delete retry path list test bank"
+        commands="start next add template status cancel delete retry path list test"
 
         case "${prev}" in
             claude-queue)
                 COMPREPLY=($(compgen -W "${commands}" -- "${cur}"))
-                return 0
-                ;;
-            bank)
-                COMPREPLY=($(compgen -W "save list use delete" -- "${cur}"))
                 return 0
                 ;;
             --status)
@@ -287,7 +230,6 @@ elif [ -n "$ZSH_VERSION" ]; then
             'path:Get the file path for a prompt'
             'list:List prompts'
             'test:Test Claude Code connection'
-            'bank:Manage prompt templates bank'
         )
 
         _describe 'command' commands

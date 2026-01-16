@@ -127,52 +127,6 @@ function cqedit
     end
 end
 
-# Bank operations
-# Usage: cqbank <command> [args...]
-function cqbank
-    claude-queue bank $argv
-end
-
-# Save template to bank
-# Usage: cqbsave <template_name> [priority]
-function cqbsave
-    set -l template_name $argv[1]
-    set -l priority (test (count $argv) -gt 1; and echo $argv[2]; or echo "0")
-
-    if test -z "$template_name"
-        echo "Usage: cqbsave <template_name> [priority]"
-        return 1
-    end
-
-    claude-queue bank save $template_name --priority $priority
-end
-
-# List bank templates
-# Usage: cqblist [--json]
-function cqblist
-    claude-queue bank list $argv
-end
-
-# Use a bank template
-# Usage: cqbuse <template_name>
-function cqbuse
-    if test (count $argv) -eq 0
-        echo "Usage: cqbuse <template_name>"
-        return 1
-    end
-    claude-queue bank use $argv[1]
-end
-
-# Delete a bank template
-# Usage: cqbdel <template_name>
-function cqbdel
-    if test (count $argv) -eq 0
-        echo "Usage: cqbdel <template_name>"
-        return 1
-    end
-    claude-queue bank delete $argv[1]
-end
-
 # Create a template
 # Usage: cqtemplate <filename> [priority]
 function cqtemplate
@@ -219,13 +173,6 @@ Prompt Management:
 
 Template Management:
   cqtemplate <name> [priority]   - Create a template
-  cqbank <command> [args...]     - Bank operations
-
-Bank Operations:
-  cqbsave <name> [priority]      - Save template to bank
-  cqblist [--json]               - List bank templates
-  cqbuse <name>                  - Use a bank template
-  cqbdel <name>                  - Delete a bank template
 
 Other:
   cqtest                         - Test Claude Code connection
@@ -255,7 +202,6 @@ complete -c claude-queue -n "__fish_use_subcommand" -a retry -d "Retry a failed 
 complete -c claude-queue -n "__fish_use_subcommand" -a path -d "Get the file path for a prompt"
 complete -c claude-queue -n "__fish_use_subcommand" -a list -d "List prompts"
 complete -c claude-queue -n "__fish_use_subcommand" -a test -d "Test Claude Code connection"
-complete -c claude-queue -n "__fish_use_subcommand" -a bank -d "Manage prompt templates bank"
 
 # start/next options
 complete -c claude-queue -n "__fish_seen_subcommand_from start next" -s v -l verbose -d "Verbose output"
@@ -281,12 +227,3 @@ complete -c claude-queue -n "__fish_seen_subcommand_from status" -s d -l detaile
 # list options
 complete -c claude-queue -n "__fish_seen_subcommand_from list" -l status -d "Filter by status" -r -a "queued executing completed failed cancelled"
 complete -c claude-queue -n "__fish_seen_subcommand_from list" -l json -d "Output as JSON"
-
-# bank subcommands
-complete -c claude-queue -n "__fish_seen_subcommand_from bank" -a "save list use delete" -f
-
-# bank save options
-complete -c claude-queue -n "__fish_seen_subcommand_from bank; and __fish_seen_subcommand_from save" -s p -l priority -d "Default priority" -r
-
-# bank list options
-complete -c claude-queue -n "__fish_seen_subcommand_from bank; and __fish_seen_subcommand_from list" -l json -d "Output as JSON"

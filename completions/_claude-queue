@@ -29,7 +29,6 @@ _claude_queue() {
                 'path:Get the file path for a prompt'
                 'list:List prompts'
                 'test:Test Claude Code connection'
-                'bank:Manage prompt templates bank'
             )
             _describe 'command' subcommands
             ;;
@@ -70,16 +69,6 @@ _claude_queue() {
                     _arguments \
                         '--status[Filter by status]:status:(queued executing completed failed cancelled)' \
                         '--json[Output as JSON]'
-                    ;;
-                bank)
-                    local -a bank_commands
-                    bank_commands=(
-                        'save:Save a template to bank'
-                        'list:List templates in bank'
-                        'use:Use template from bank'
-                        'delete:Delete template from bank'
-                    )
-                    _describe 'bank command' bank_commands
                     ;;
             esac
             ;;

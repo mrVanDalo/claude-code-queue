@@ -142,14 +142,12 @@ class QueueStorage:
         self.queue_dir = self.base_dir / "queue"
         self.completed_dir = self.base_dir / "completed"
         self.failed_dir = self.base_dir / "failed"
-        self.bank_dir = self.base_dir / "bank"
         self.state_file = self.base_dir / "queue-state.json"
 
         for dir_path in [
             self.queue_dir,
             self.completed_dir,
             self.failed_dir,
-            self.bank_dir,
         ]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -361,130 +359,6 @@ What should be delivered...
             f.write(template_content)
 
         return file_path
-
-    def save_prompt_to_bank(self, template_name: str, priority: int = 0) -> Path:
-        """Save a prompt template to the bank directory."""
-        template_content = f"""---
-priority: {priority}
-working_directory: .
-context_files: []
-max_retries: 3
-estimated_tokens: null
-# Permission mode: acceptEdits (default), bypassPermissions, default, delegate, dontAsk, plan
-# permission_mode: acceptEdits
-# Allowed tools: ["Edit", "Write", "Read", "Bash(git:*)"]
-# allowed_tools: []
-# Timeout in seconds (overrides global --timeout)
-# timeout: 3600
-# Model to use: sonnet (default), opus, haiku
-# model: sonnet
----
-
-# {template_name.replace('-', ' ').replace('_', ' ').title()}
-
-Write your prompt here...
-
-## Context
-Any additional context or requirements...
-
-## Expected Output
-What should be delivered...
-"""
-
-        file_path = self.bank_dir / f"{template_name}.md"
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(template_content)
-
-        return file_path
-
-    def list_bank_templates(self) -> List[dict]:
-        """List all templates in the bank directory."""
-        templates = []
-
-        for file_path in self.bank_dir.glob("*.md"):
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-
-                # Parse frontmatter to get metadata
-                metadata = {}
-                if content.startswith("---\n"):
-                    parts = content.split("---\n", 2)
-                    if len(parts) >= 3:
-                        try:
-                            metadata = yaml.safe_load(parts[1]) or {}
-                        except yaml.YAMLError:
-                            pass
-
-                # Extract title from content or use filename
-                title = file_path.stem.replace("-", " ").replace("_", " ").title()
-                if len(parts) >= 3:
-                    lines = parts[2].strip().split("\n")
-                    for line in lines:
-                        if line.startswith("# "):
-                            title = line[2:].strip()
-                            break
-
-                templates.append(
-                    {
-                        "name": file_path.stem,
-                        "title": title,
-                        "priority": metadata.get("priority", 0),
-                        "working_directory": metadata.get("working_directory", "."),
-                        "estimated_tokens": metadata.get("estimated_tokens"),
-                        "modified": datetime.fromtimestamp(file_path.stat().st_mtime),
-                    }
-                )
-
-            except Exception as e:
-                print(f"Error reading template {file_path}: {e}")
-                continue
-
-        return sorted(templates, key=lambda x: x["name"])
-
-    def use_bank_template(self, template_name: str) -> Optional[QueuedPrompt]:
-        """Copy a template from bank to queue and return as QueuedPrompt."""
-        bank_file = self.bank_dir / f"{template_name}.md"
-
-        if not bank_file.exists():
-            return None
-
-        try:
-            # Parse the bank template
-            template_prompt = self.parser.parse_prompt_file(bank_file)
-            if not template_prompt:
-                return None
-
-            # Generate new ID for the queue
-            import uuid
-
-            new_id = str(uuid.uuid4())[:8]
-            template_prompt.id = new_id
-            template_prompt.status = PromptStatus.QUEUED
-            template_prompt.created_at = datetime.now()
-            template_prompt.retry_count = 0
-            template_prompt.execution_log = ""
-            template_prompt.last_executed = None
-
-            return template_prompt
-
-        except Exception as e:
-            print(f"Error using bank template {template_name}: {e}")
-            return None
-
-    def delete_bank_template(self, template_name: str) -> bool:
-        """Delete a template from the bank."""
-        bank_file = self.bank_dir / f"{template_name}.md"
-
-        if not bank_file.exists():
-            return False
-
-        try:
-            bank_file.unlink()
-            return True
-        except Exception as e:
-            print(f"Error deleting bank template {template_name}: {e}")
-            return False
 
     def get_prompt_path(self, prompt_id: str) -> Optional[Path]:
         """Get the file path for a prompt by ID."""

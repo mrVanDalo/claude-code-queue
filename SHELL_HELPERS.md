@@ -79,16 +79,6 @@ Fish completions are automatically installed to `result/share/fish/vendor_comple
 |----------|-------------|---------|
 | `cqtemplate <name> [priority]` | Create a template | `cqtemplate feature 2` |
 
-### Bank Operations
-
-| Function | Description | Example |
-|----------|-------------|---------|
-| `cqbank <command> [args...]` | Bank operations | `cqbank list` |
-| `cqbsave <name> [priority]` | Save template to bank | `cqbsave update-docs 1` |
-| `cqblist [--json]` | List bank templates | `cqblist` |
-| `cqbuse <name>` | Use a bank template | `cqbuse update-docs` |
-| `cqbdel <name>` | Delete a bank template | `cqbdel old-template` |
-
 ### Other
 
 | Function | Description | Example |
@@ -148,12 +138,6 @@ cqtemplate my-feature 2
 
 # Edit the template (opens in $EDITOR)
 # ... make changes ...
-
-# Save it to the bank for reuse
-cqbsave my-feature 2
-
-# Later, use the template
-cqbuse my-feature
 ```
 
 ### Managing Failed Prompts
@@ -177,7 +161,6 @@ cqretry abc123
 1. **Use `cqahere`**: Automatically sets working directory to current location
 1. **Check status frequently**: `cqs` shows overall queue health
 1. **Edit before retrying**: Use `cqedit <id>` to modify failed prompts before retrying
-1. **Bank common templates**: Save frequently-used prompts to the bank for quick reuse
 1. **Use tab completion**: All shells support intelligent tab completion for commands and options
 
 ## Integration with Nix
