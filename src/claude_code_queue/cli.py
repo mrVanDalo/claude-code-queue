@@ -8,11 +8,15 @@ A tool to queue Claude Code prompts and automatically execute them when token li
 import argparse
 import json
 import os
+import subprocess
 import sys
+import tempfile
 from datetime import datetime
+from pathlib import Path
 
 from .models import PromptStatus, QueuedPrompt
 from .queue_manager import QueueManager
+from .storage import MarkdownPromptParser
 
 
 def main():
@@ -138,6 +142,62 @@ Examples:
         help="jj bookmark name for dependent queue items",
     )
 
+    # Edit command - opens $EDITOR to compose a prompt
+    edit_parser = subparsers.add_parser("edit", help="Open $EDITOR to compose a prompt")
+    edit_parser.add_argument(
+        "--priority",
+        "-p",
+        type=int,
+        default=0,
+        help="Priority (lower = higher priority)",
+    )
+    edit_parser.add_argument(
+        "--working-dir", "-d", default=os.getcwd(), help="Working directory"
+    )
+    edit_parser.add_argument(
+        "--context-files", "-f", nargs="*", default=[], help="Context files to include"
+    )
+    edit_parser.add_argument(
+        "--max-retries", "-r", type=int, default=3, help="Maximum retry attempts"
+    )
+    edit_parser.add_argument(
+        "--estimated-tokens", "-t", type=int, help="Estimated token usage"
+    )
+    edit_parser.add_argument(
+        "--permission-mode",
+        choices=[
+            "acceptEdits",
+            "bypassPermissions",
+            "default",
+            "delegate",
+            "dontAsk",
+            "plan",
+        ],
+        help="Permission mode for this prompt (default: acceptEdits)",
+    )
+    edit_parser.add_argument(
+        "--allowed-tools",
+        nargs="*",
+        help='Allowed tools (e.g. "Edit" "Write" "Bash(git:*)")',
+    )
+    edit_parser.add_argument(
+        "--prompt-timeout",
+        type=int,
+        dest="prompt_timeout",
+        help="Timeout in seconds for this prompt (overrides global --timeout)",
+    )
+    edit_parser.add_argument(
+        "--model",
+        "-m",
+        choices=["sonnet", "opus", "haiku"],
+        help="Claude model to use (default: sonnet)",
+    )
+    edit_parser.add_argument(
+        "--bookmark",
+        "-b",
+        help="jj bookmark name for dependent queue items",
+    )
+
     status_parser = subparsers.add_parser("status", help="Show queue status")
     status_parser.add_argument("--json", action="store_true", help="Output as JSON")
     status_parser.add_argument(
@@ -195,6 +255,8 @@ Examples:
             return cmd_next(manager, args)
         elif args.command == "add":
             return cmd_add(manager, args)
+        elif args.command == "edit":
+            return cmd_edit(manager, args)
         elif args.command == "status":
             return cmd_status(manager, args)
         elif args.command == "cancel":
@@ -262,6 +324,85 @@ def cmd_add(manager: QueueManager, args) -> int:
 
     success = manager.add_prompt(prompt)
     return 0 if success else 1
+
+
+def cmd_edit(manager: QueueManager, args) -> int:
+    """Open $EDITOR to compose a prompt."""
+    # Check if EDITOR is set
+    editor = os.environ.get("EDITOR")
+    if not editor:
+        print("Error: $EDITOR environment variable is not set", file=sys.stderr)
+        print(
+            "Set it with: export EDITOR=vim (or your preferred editor)", file=sys.stderr
+        )
+        return 1
+
+    # Create a temporary prompt with all the defaults
+    prompt = QueuedPrompt(
+        content="",  # Empty content, user will fill this in
+        working_directory=args.working_dir,
+        priority=args.priority,
+        context_files=args.context_files,
+        max_retries=args.max_retries,
+        estimated_tokens=args.estimated_tokens,
+        permission_mode=getattr(args, "permission_mode", None),
+        allowed_tools=getattr(args, "allowed_tools", None),
+        timeout=getattr(args, "prompt_timeout", None),
+        model=getattr(args, "model", None),
+        bookmark=getattr(args, "bookmark", None),
+    )
+
+    # Create temporary file with the prompt template
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".md",
+        delete=False,
+        prefix="claude-queue-",
+    ) as tmp_file:
+        tmp_path = Path(tmp_file.name)
+        # Write the template using the existing parser
+        MarkdownPromptParser.write_prompt_file(prompt, tmp_path)
+
+    try:
+        # Get mtime before opening editor
+        mtime_before = tmp_path.stat().st_mtime
+
+        # Open the editor
+        result = subprocess.run([editor, str(tmp_path)])
+        if result.returncode != 0:
+            print(f"Editor exited with code {result.returncode}", file=sys.stderr)
+            return 1
+
+        # Check if file was modified
+        mtime_after = tmp_path.stat().st_mtime
+        if mtime_after == mtime_before:
+            print("File was not modified, aborting")
+            return 0
+
+        # Parse the edited file
+        edited_prompt = MarkdownPromptParser.parse_prompt_file(tmp_path)
+        if not edited_prompt:
+            print("Error: Could not parse the edited file", file=sys.stderr)
+            return 1
+
+        # Check if content is empty
+        if not edited_prompt.content.strip():
+            print("Error: Prompt content is empty, aborting", file=sys.stderr)
+            return 1
+
+        # Add to queue using the manager's storage
+        success = manager.storage.add_prompt_from_markdown(tmp_path)
+        if success:
+            print(f"Added prompt {success.id} to queue")
+            return 0
+        else:
+            print("Error: Failed to add prompt to queue", file=sys.stderr)
+            return 1
+
+    finally:
+        # Clean up temp file if it still exists (add_prompt_from_markdown moves it)
+        if tmp_path.exists():
+            tmp_path.unlink()
 
 
 def cmd_status(manager: QueueManager, args) -> int:
