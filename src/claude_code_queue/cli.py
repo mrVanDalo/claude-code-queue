@@ -31,6 +31,12 @@ Examples:
   # Add a quick prompt
   claude-queue add "Fix the authentication bug" --priority 1
 
+  # Create a new prompt using your $EDITOR
+  claude-queue edit
+
+  # Edit an existing prompt
+  claude-queue edit abc123
+
   # Check queue status
   claude-queue status
 
@@ -143,7 +149,14 @@ Examples:
     )
 
     # Edit command - opens $EDITOR to compose a prompt
-    edit_parser = subparsers.add_parser("edit", help="Open $EDITOR to compose a prompt")
+    edit_parser = subparsers.add_parser(
+        "edit", help="Open $EDITOR to compose a prompt or edit an existing one"
+    )
+    edit_parser.add_argument(
+        "prompt_id",
+        nargs="?",
+        help="Optional prompt ID to edit (if not provided, creates new prompt)",
+    )
     edit_parser.add_argument(
         "--priority",
         "-p",
@@ -327,7 +340,7 @@ def cmd_add(manager: QueueManager, args) -> int:
 
 
 def cmd_edit(manager: QueueManager, args) -> int:
-    """Open $EDITOR to compose a prompt."""
+    """Open $EDITOR to compose a prompt or edit an existing one."""
     # Check if EDITOR is set
     editor = os.environ.get("EDITOR")
     if not editor:
@@ -337,20 +350,50 @@ def cmd_edit(manager: QueueManager, args) -> int:
         )
         return 1
 
-    # Create a temporary prompt with all the defaults
-    prompt = QueuedPrompt(
-        content="",  # Empty content, user will fill this in
-        working_directory=args.working_dir,
-        priority=args.priority,
-        context_files=args.context_files,
-        max_retries=args.max_retries,
-        estimated_tokens=args.estimated_tokens,
-        permission_mode=getattr(args, "permission_mode", None),
-        allowed_tools=getattr(args, "allowed_tools", None),
-        timeout=getattr(args, "prompt_timeout", None),
-        model=getattr(args, "model", None),
-        bookmark=getattr(args, "bookmark", None),
-    )
+    # Check if we're editing an existing prompt
+    prompt_id = getattr(args, "prompt_id", None)
+    is_editing_existing = prompt_id is not None
+
+    if is_editing_existing:
+        # Get the path of the existing prompt
+        existing_path = manager.get_prompt_path(prompt_id)
+        if not existing_path:
+            print(f"Error: Prompt {prompt_id} not found", file=sys.stderr)
+            return 1
+
+        # Parse the existing prompt to get its current content
+        existing_prompt = MarkdownPromptParser.parse_prompt_file(existing_path)
+        if not existing_prompt:
+            print(
+                f"Error: Could not parse existing prompt {prompt_id}", file=sys.stderr
+            )
+            return 1
+
+        # Create a temporary file with the existing prompt content
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".md",
+            delete=False,
+            prefix=prompt_id + "-",
+        ) as tmp_file:
+            tmp_path = Path(tmp_file.name)
+            # Write the existing prompt to temp file
+            MarkdownPromptParser.write_prompt_file(existing_prompt, tmp_path)
+    else:
+        # Create a new temporary prompt with all the defaults
+        prompt = QueuedPrompt(
+            content="",  # Empty content, user will fill this in
+            working_directory=args.working_dir,
+            priority=args.priority,
+            context_files=args.context_files,
+            max_retries=args.max_retries,
+            estimated_tokens=args.estimated_tokens,
+            permission_mode=getattr(args, "permission_mode", None),
+            allowed_tools=getattr(args, "allowed_tools", None),
+            timeout=getattr(args, "prompt_timeout", None),
+            model=getattr(args, "model", None),
+            bookmark=getattr(args, "bookmark", None),
+        )
 
     # Create temporary file with the prompt template
     with tempfile.NamedTemporaryFile(
@@ -390,14 +433,28 @@ def cmd_edit(manager: QueueManager, args) -> int:
             print("Error: Prompt content is empty, aborting", file=sys.stderr)
             return 1
 
-        # Add to queue using the manager's storage
-        success = manager.storage.add_prompt_from_markdown(tmp_path)
-        if success:
-            print(f"Added prompt {success.id} to queue")
-            return 0
+        if is_editing_existing:
+            # Update the existing prompt file with the edited content
+            # Delete the original file
+            existing_path.unlink()
+
+            # Move the temp file to the appropriate location
+            success = manager.storage.add_prompt_from_markdown(tmp_path)
+            if success:
+                print(f"Updated prompt {prompt_id}")
+                return 0
+            else:
+                print("Error: Failed to update prompt", file=sys.stderr)
+                return 1
         else:
-            print("Error: Failed to add prompt to queue", file=sys.stderr)
-            return 1
+            # Add to queue using the manager's storage
+            success = manager.storage.add_prompt_from_markdown(tmp_path)
+            if success:
+                print(f"Added prompt {success.id} to queue")
+                return 0
+            else:
+                print("Error: Failed to add prompt to queue", file=sys.stderr)
+                return 1
 
     finally:
         # Clean up temp file if it still exists (add_prompt_from_markdown moves it)
