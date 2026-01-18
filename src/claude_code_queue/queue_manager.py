@@ -209,7 +209,10 @@ class QueueManager:
 
         self._print_separator()
         print(f"📂 {next_prompt.working_directory}")
-        print(f"⏳ Executing prompt {next_prompt.id}: {next_prompt.content[:50]}...")
+        model_str = f" (model: {next_prompt.model})" if next_prompt.model else ""
+        print(
+            f"⏳ Executing prompt {next_prompt.id}{model_str}: {next_prompt.content[:50]}..."
+        )
         self._execute_prompt(next_prompt)
         self._print_separator()
 

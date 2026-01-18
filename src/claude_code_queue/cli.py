@@ -638,8 +638,9 @@ def cmd_list(manager: QueueManager, args) -> int:
                 PromptStatus.CANCELLED: "🚫",
             }.get(prompt.status, "❓")
 
+            model_str = f" | {prompt.model}" if prompt.model else ""
             print(
-                f"{status_icon} {prompt.id} | P{prompt.priority} | {prompt.status.value}"
+                f"{status_icon} {prompt.id} | P{prompt.priority} | {prompt.status.value}{model_str}"
             )
             print(f"   Working directory: {prompt.working_directory}")
             print(f"   Created: {prompt.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
