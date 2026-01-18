@@ -4,6 +4,7 @@ Queue manager with execution loop.
 
 import shutil
 import signal
+import sys
 import time
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Optional
@@ -29,12 +30,14 @@ class QueueManager:
         self.check_interval = check_interval
         self.running = False
         self.state: Optional[QueueState] = None
+        self.last_status_message: Optional[str] = None
 
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""
+        self._clear_status_line()
         print(f"\nReceived signal {signum}, shutting down gracefully...")
         self.stop()
 
@@ -65,8 +68,10 @@ class QueueManager:
                         time.sleep(sleep_interval)
 
         except KeyboardInterrupt:
+            self._clear_status_line()
             print("\nShutdown requested by user")
         except Exception as e:
+            self._clear_status_line()
             print(f"Error in queue processing: {e}")
         finally:
             self._shutdown()
@@ -113,6 +118,7 @@ class QueueManager:
 
     def _shutdown(self) -> None:
         """Clean shutdown procedure."""
+        self._clear_status_line()
         print("Shutting down...")
 
         if self.state:
@@ -159,6 +165,7 @@ class QueueManager:
 
         # Check if rate limit has expired
         if self.state.clear_rate_limit_if_expired():
+            self._clear_status_line()
             print("Rate limit expired, resuming queue processing")
 
         next_prompt = self.state.get_next_prompt()
@@ -179,19 +186,26 @@ class QueueManager:
                     ).total_seconds()
                     if seconds_until_reset > 0:
                         reset_str = self._format_duration(seconds_until_reset)
-                        print(
+                        self._print_status_line(
                             f"Rate limited ({queued_count} prompts queued, reset in {reset_str})"
                         )
                     else:
-                        print(f"Rate limited ({queued_count} prompts queued)")
+                        self._print_status_line(
+                            f"Rate limited ({queued_count} prompts queued)"
+                        )
                 else:
-                    print(f"Rate limited ({queued_count} prompts queued)")
+                    self._print_status_line(
+                        f"Rate limited ({queued_count} prompts queued)"
+                    )
             else:
-                print("No prompts in queue")
+                self._print_status_line("No prompts in queue")
 
             if callback:
                 callback(self.state)
             return
+
+        # Clear status line before printing other output
+        self._clear_status_line()
 
         self._print_separator()
         print(f"📂 {next_prompt.working_directory}")
@@ -353,6 +367,34 @@ class QueueManager:
             width = 80
         print("-" * width)
 
+    def _print_status_line(self, message: str) -> None:
+        """Print or update a status line with timestamp using VT100 control codes.
+
+        If the same status type is printed again, it will update the line in place.
+        """
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        full_message = f"⏳ {message} {timestamp}"
+
+        # Check if we need to clear the previous line
+        if self.last_status_message is not None:
+            # Move cursor to beginning of line and clear it
+            # \r moves to beginning, \033[K clears from cursor to end of line
+            sys.stdout.write("\r\033[K")
+
+        # Print the new message
+        sys.stdout.write(full_message)
+        sys.stdout.flush()
+
+        # Store the message type (without timestamp) for next comparison
+        self.last_status_message = message
+
+    def _clear_status_line(self) -> None:
+        """Clear the status line before printing other output."""
+        if self.last_status_message is not None:
+            # Clear the line and print a newline to move to next line
+            sys.stdout.write("\r\033[K")
+            self.last_status_message = None
+
     def _calculate_sleep_interval(self) -> int:
         """Calculate optimal sleep interval based on queue state and reset times."""
         if not self.state:
@@ -379,6 +421,7 @@ class QueueManager:
 
                 # If the wait time is significant, log it
                 if wait_time > 60:
+                    self._clear_status_line()
                     reset_str = self._format_duration(seconds_until_reset)
                     print(f"Waiting {reset_str} until rate limit reset...")
 
