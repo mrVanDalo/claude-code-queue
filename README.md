@@ -1,17 +1,21 @@
 # Claude Code Queue
 
-A tool to queue Claude Code prompts and automatically execute them when token limits reset, preventing manual waiting during 5-hour limit windows.
+Never wait for Claude Code token limits again. Queue your prompts, walk away, and let the system automatically execute them when limits reset.
 
-## Features
+## Why Use This?
 
-- **Markdown-based Queue**: Each prompt is a `.md` file with YAML frontmatter
-- **Automatic Rate Limit Handling**: Detects rate limits and waits for reset windows
-- **Priority System**: Execute high-priority prompts first
-- **Retry Logic**: Automatically retry failed prompts
-- **Persistent Storage**: Queue survives system restarts
-- **CLI Interface**: Simple command-line interface
-- **Jujutsu Integration**: Auto-create jj changes for prompts in jj repositories
-- **Model Selection**: Choose between Sonnet, Opus, and Haiku models
+**The Problem**: Claude Code has 5-hour token limit windows. When you hit the limit, you have to wait and manually retry your prompts.
+
+**The Solution**: claude-code-queue runs prompts in the background, automatically detects rate limits, waits for the reset window, and resumes execution. You can queue up work for hours or overnight and come back to finished results.
+
+## Key Features
+
+- **Automatic Rate Limit Handling**: Detects when you hit limits and waits for the next reset window (5am, 10am, 3pm, 8pm)
+- **Jujutsu (jj) Integration**: Automatically creates version control commits for each processed queue item - no manual commit management needed
+- **Priority Queue**: Control execution order - run urgent fixes before large features
+- **Markdown-Based**: Each prompt is just a `.md` file you can edit directly
+- **Persistent & Reliable**: Survives system restarts, tracks retry counts, organizes completed/failed prompts
+- **Model Selection**: Choose between Sonnet, Opus, and Haiku for different tasks
 
 ## Installation
 
@@ -204,16 +208,12 @@ claude-queue next
 
 ## How It Works
 
-1. **Queue Processing**: Runs prompts in priority order (lower number = higher priority)
-1. **Rate Limit Detection**: Monitors Claude Code output for rate limit messages
-1. **Smart Reset Estimation**: Estimates reset time based on 5-hour windows (5am, 10am, 3pm, 8pm)
-1. **Automatic Waiting**: When rate limited, waits until estimated reset time then resumes
-1. **Retry Logic**: Failed prompts are retried up to `max_retries` times
-1. **File Organization**:
-   - `~/.claude-queue/queue/` - Pending prompts
-   - `~/.claude-queue/completed/` - Successful executions
-   - `~/.claude-queue/failed/` - Failed prompts
-   - `~/.claude-queue/queue-state.json` - Queue metadata
+1. **Add Prompts**: Use `claude-queue add` or create markdown templates with detailed prompts
+1. **Start Processing**: Run `claude-queue start` and the system processes prompts in priority order
+1. **Smart Rate Limiting**: When Claude hits token limits, the system detects it, estimates the next reset window, and waits automatically
+1. **Auto-Resume**: After the reset window, processing continues where it left off
+1. **Version Control**: If you're using Jujutsu (jj), each prompt execution automatically creates a commit with the changes
+1. **Organization**: Completed prompts move to `~/.claude-queue/completed/`, failed ones to `~/.claude-queue/failed/`
 
 ## Configuration
 
@@ -347,21 +347,36 @@ When rate limited:
 
 The rate limit state persists across restart, so the daemon remembers if it was rate limited.
 
-## Jujutsu (jj) Integration
+## Jujutsu (jj) Version Control Integration
 
-When working in a Jujutsu repository, claude-code-queue can automatically create new changes for each prompt execution:
+**claude-code-queue understands Jujutsu** and automatically manages version control commits for you. When you queue prompts in a jj repository, each execution creates its own commit - no manual `jj new` or `jj commit` needed.
 
-- **Automatic change creation**: Creates a new change based on `main` or specified bookmark
-- **Bookmark support**: Use `--bookmark` to specify which bookmark to base the change on
-- **Bookmark setting**: On successful execution, sets a bookmark on the resulting change
-- **Graceful degradation**: Works normally if jj is not available
+### How It Works
+
+1. **Auto-Commit Creation**: Before executing each prompt, creates a new jj change based on `main` (or your specified bookmark)
+1. **Smart Bookmarks**: Use `--bookmark feature-name` to automatically set a bookmark on the resulting commit
+1. **Clean History**: Each queued task gets its own isolated commit, making history easier to review and manage
+1. **Graceful Fallback**: Works perfectly fine in non-jj repositories too
+
+### Example Workflow
 
 ```bash
-# Add prompt with jj bookmark
-claude-queue add "Implement feature X" --bookmark feature-x --working-dir /path/to/jj-repo
+# Queue multiple features, each gets its own commit
+claude-queue add "Add user authentication" --bookmark auth --working-dir ~/my-project
+claude-queue add "Add password reset" --bookmark pwd-reset --working-dir ~/my-project
+claude-queue add "Add rate limiting" --bookmark rate-limit --working-dir ~/my-project
+
+# Start processing - each task creates a separate jj commit with a bookmark
+claude-queue start
 ```
 
-See [JJ_INTEGRATION_IMPLEMENTATION.md](JJ_INTEGRATION_IMPLEMENTATION.md) for details.
+Result: Three separate commits with bookmarks `auth`, `pwd-reset`, and `rate-limit`, each containing only its relevant changes.
+
+### No jj? No Problem
+
+If Jujutsu isn't available or you're using Git, the queue works normally without version control integration.
+
+See [JJ_INTEGRATION_IMPLEMENTATION.md](JJ_INTEGRATION_IMPLEMENTATION.md) for technical details.
 
 ## Troubleshooting
 
@@ -386,16 +401,13 @@ claude-queue status --detailed
 - Check if Claude Code output format changed
 - File an issue with the error message you received
 
-## Directory Structure
+## Storage Organization
 
-```
-~/.claude-queue/
-├── queue/               # Pending prompts
-│   ├── 001-fix-bug.md
-│   └── 002-feature.executing.md
-├── completed/           # Successful executions
-│   └── 001-fix-bug-completed.md
-├── failed/              # Failed prompts
-│   └── 003-failed-task.md
-└── queue-state.json     # Queue metadata
-```
+All queue data lives in `~/.claude-queue/`:
+
+- `queue/` - Prompts waiting to be processed
+- `completed/` - Successfully executed prompts (with full Claude output)
+- `failed/` - Failed or cancelled prompts for review
+- `queue-state.json` - Metadata, counters, and rate limit tracking
+
+Each prompt is a markdown file you can view or edit directly.
