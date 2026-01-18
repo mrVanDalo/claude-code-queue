@@ -334,8 +334,12 @@ class QueueStorage:
         """Add a prompt from an existing markdown file."""
         prompt = self.parser.parse_prompt_file(file_path)
         if prompt:
-            if file_path.parent != self.queue_dir:
-                new_path = self.queue_dir / file_path.name
+            # Generate proper filename with hash ID
+            base_filename = MarkdownPromptParser.get_base_filename(prompt)
+            new_path = self.queue_dir / base_filename
+
+            # Move and rename the file to follow the naming convention
+            if file_path != new_path:
                 shutil.move(str(file_path), str(new_path))
 
             prompt.status = PromptStatus.QUEUED
