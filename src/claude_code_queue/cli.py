@@ -641,11 +641,11 @@ def cmd_list(manager: QueueManager, args) -> int:
             print(
                 f"{status_icon} {prompt.id} | P{prompt.priority} | {prompt.status.value}"
             )
-            print(
-                f"   {prompt.content[:70]}{'...' if len(prompt.content) > 70 else ''}"
-            )
             print(f"   Working directory: {prompt.working_directory}")
             print(f"   Created: {prompt.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(
+                f"   Command: {prompt.content[:70]}{'...' if len(prompt.content) > 70 else ''}"
+            )
             print()
 
     return 0
