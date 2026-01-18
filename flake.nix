@@ -86,6 +86,7 @@
           apps.default = {
             type = "app";
             program = "${claude-code-queue}/bin/claude-queue";
+            meta.description = "Queue Claude Code prompts and execute them when token limits reset";
           };
 
           devShells.default = pkgs.mkShell {

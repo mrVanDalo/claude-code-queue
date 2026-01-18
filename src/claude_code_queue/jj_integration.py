@@ -234,8 +234,8 @@ class JujutsuIntegration:
         """
         Check if the working copy has any changes (modified, added, or removed files).
 
-        Uses 'jj diff --stat' to detect if there are any uncommitted changes
-        in the working directory.
+        Uses 'jj status' to detect if there are any uncommitted changes
+        in the working directory, including untracked files.
 
         Args:
             working_dir: Path to the working directory
@@ -251,9 +251,9 @@ class JujutsuIntegration:
             if not JujutsuIntegration.is_jj_repository(working_dir):
                 return False, "not a jj repository"
 
-            # Use jj diff to check for changes
+            # Use jj status to check for changes (includes untracked files)
             result = subprocess.run(
-                ["jj", "diff"],
+                ["jj", "status"],
                 cwd=working_dir,
                 capture_output=True,
                 text=True,
@@ -262,12 +262,25 @@ class JujutsuIntegration:
 
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                return False, f"jj diff failed: {error_msg}"
+                return False, f"jj status failed: {error_msg}"
 
-            # If there's any output from --stat, there are changes
-            # An empty diff produces no output
-            has_changes = bool(result.stdout.strip())
-            return has_changes, None
+            # Parse jj status output to detect changes
+            # Status shows "Working copy changes:" if there are changes
+            # And "Working copy : <change-id>" with "No changes."/"The working copy is clean." if clean
+            output = result.stdout.strip()
+
+            # Check for indicators of changes (including untracked files)
+            has_changes = (
+                "Working copy changes:" in output
+                or "Added " in output
+                or "Modified " in output
+                or "Removed " in output
+            )
+
+            # Also check for "clean" indicators to be sure
+            is_clean = "No changes." in output or "The working copy is clean." in output
+
+            return has_changes and not is_clean, None
 
         except subprocess.TimeoutExpired:
             return False, "Timeout while checking for changes"
