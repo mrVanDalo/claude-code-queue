@@ -366,19 +366,78 @@ class TestQueueStorage:
 
         assert len(sanitized) == 50
 
-    def test_create_prompt_template(self, tmp_path):
-        """Test creating a prompt template."""
-        storage = QueueStorage(str(tmp_path / "queue"))
+    def test_write_prompt_template_mode(self, tmp_path):
+        """Test writing a prompt in template mode with all options."""
+        prompt = QueuedPrompt(
+            id="test-template",
+            content="",
+            priority=0,
+            working_directory="/home/user/project",
+            max_retries=3,
+        )
 
-        file_path = storage.create_prompt_template("my-template", priority=5)
+        file_path = tmp_path / "template.md"
+        success = MarkdownPromptParser.write_prompt_file(
+            prompt, file_path, template_mode=True
+        )
 
+        assert success is True
         assert file_path.exists()
-        assert file_path.name == "my-template.md"
 
         content = file_path.read_text()
-        assert "priority: 5" in content
-        assert "Prompt Title" in content
-        assert "permission_mode" in content
+        # Check required fields
+        assert "priority: 0" in content
+        assert "working_directory: /home/user/project" in content
+        assert "max_retries: 3" in content
+        # Check optional fields are commented
+        assert "# context_files:" in content
+        assert "# estimated_tokens:" in content
+        assert "# permission_mode:" in content
+        assert "# allowed_tools:" in content
+        assert "# timeout:" in content
+        assert "# model:" in content
+        assert "# bookmark:" in content
+        # Check that comments include hints
+        assert "acceptEdits|bypassPermissions|default|delegate|dontAsk|plan" in content
+        assert "sonnet|opus|haiku" in content
+        # Check placeholder content
+        assert "# Write your prompt here" in content
+
+    def test_write_prompt_template_mode_with_values(self, tmp_path):
+        """Test template mode when some optional values are provided."""
+        prompt = QueuedPrompt(
+            id="test-template-2",
+            content="Test content",
+            priority=1,
+            working_directory="/test",
+            max_retries=5,
+            permission_mode="acceptEdits",
+            model="opus",
+            bookmark="my-feature",
+            context_files=["file1.py", "file2.py"],
+        )
+
+        file_path = tmp_path / "template2.md"
+        success = MarkdownPromptParser.write_prompt_file(
+            prompt, file_path, template_mode=True
+        )
+
+        assert success is True
+
+        content = file_path.read_text()
+        # Values should be uncommented when provided
+        assert "permission_mode: acceptEdits" in content
+        assert "model: opus" in content
+        assert "bookmark: my-feature" in content
+        assert "context_files:" in content
+        assert "file1.py" in content
+        # Still-empty options should be commented
+        assert "# estimated_tokens:" in content
+        assert "# allowed_tools:" in content
+        assert "# timeout:" in content
+        # Content should be used, not placeholder
+        assert "Test content" in content
+        assert "# Write your prompt here" not in content
 
     def test_add_prompt_from_markdown(self, tmp_path):
         """Test adding a prompt from an existing markdown file."""

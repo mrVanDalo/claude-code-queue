@@ -360,8 +360,8 @@ def cmd_edit(manager: QueueManager, args) -> int:
         prefix=prompt.id + "-",
     ) as tmp_file:
         tmp_path = Path(tmp_file.name)
-        # Write the template using the existing parser
-        MarkdownPromptParser.write_prompt_file(prompt, tmp_path)
+        # Write the template using the existing parser in template mode
+        MarkdownPromptParser.write_prompt_file(prompt, tmp_path, template_mode=True)
 
     try:
         # Get mtime before opening editor

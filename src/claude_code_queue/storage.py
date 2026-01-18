@@ -80,46 +80,126 @@ class MarkdownPromptParser:
             return None
 
     @staticmethod
-    def write_prompt_file(prompt: QueuedPrompt, file_path: Path) -> bool:
-        """Write a QueuedPrompt to a markdown file."""
+    def write_prompt_file(
+        prompt: QueuedPrompt, file_path: Path, template_mode: bool = False
+    ) -> bool:
+        """Write a QueuedPrompt to a markdown file.
+
+        Args:
+            prompt: The prompt to write
+            file_path: The path to write to
+            template_mode: If True, write all possible fields with comments for optional ones
+        """
         try:
-            metadata = {
-                "priority": prompt.priority,
-                "working_directory": prompt.working_directory,
-                "max_retries": prompt.max_retries,
-                "created_at": prompt.created_at.isoformat(),
-                "status": prompt.status.value,
-                "retry_count": prompt.retry_count,
-            }
+            if template_mode:
+                # In template mode, write all fields with comments for optional ones
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write("---\n")
+                    f.write(f"priority: {prompt.priority}\n")
+                    f.write(f"working_directory: {prompt.working_directory}\n")
+                    f.write(f"max_retries: {prompt.max_retries}\n")
 
-            if prompt.context_files:
-                metadata["context_files"] = prompt.context_files
-            if prompt.estimated_tokens:
-                metadata["estimated_tokens"] = prompt.estimated_tokens
-            if prompt.last_executed:
-                metadata["last_executed"] = prompt.last_executed.isoformat()
-            if prompt.permission_mode:
-                metadata["permission_mode"] = prompt.permission_mode
-            if prompt.allowed_tools:
-                metadata["allowed_tools"] = prompt.allowed_tools
-            if prompt.timeout is not None:  # 0 is valid
-                metadata["timeout"] = prompt.timeout
-            if prompt.model:
-                metadata["model"] = prompt.model
-            if prompt.bookmark:
-                metadata["bookmark"] = prompt.bookmark
+                    # Context files - optional
+                    if prompt.context_files:
+                        f.write("context_files:\n")
+                        for cf in prompt.context_files:
+                            f.write(f"  - {cf}\n")
+                    else:
+                        f.write("# context_files: []\n")
 
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write("---\n")
-                yaml.dump(metadata, f, default_flow_style=False)
-                f.write("---\n\n")
-                f.write(prompt.content)
+                    # Estimated tokens - optional
+                    if prompt.estimated_tokens:
+                        f.write(f"estimated_tokens: {prompt.estimated_tokens}\n")
+                    else:
+                        f.write("# estimated_tokens: 1000\n")
 
-                if prompt.execution_log:
-                    f.write("\n\n## Execution Log\n\n")
-                    f.write("```\n")
-                    f.write(prompt.execution_log)
-                    f.write("```\n")
+                    # Permission mode - optional
+                    if prompt.permission_mode:
+                        f.write(f"permission_mode: {prompt.permission_mode}\n")
+                    else:
+                        f.write(
+                            "# permission_mode: acceptEdits  # acceptEdits|bypassPermissions|default|delegate|dontAsk|plan\n"
+                        )
+
+                    # Allowed tools - optional
+                    if prompt.allowed_tools:
+                        f.write("allowed_tools:\n")
+                        for tool in prompt.allowed_tools:
+                            f.write(f"  - {tool}\n")
+                    else:
+                        f.write("# allowed_tools:\n")
+                        f.write("#   - Edit\n")
+                        f.write("#   - Write\n")
+                        f.write("#   - Bash(git:*)\n")
+
+                    # Timeout - optional
+                    if prompt.timeout is not None:
+                        f.write(f"timeout: {prompt.timeout}\n")
+                    else:
+                        f.write("# timeout: 3600\n")
+
+                    # Model - optional
+                    if prompt.model:
+                        f.write(f"model: {prompt.model}\n")
+                    else:
+                        f.write("# model: sonnet  # sonnet|opus|haiku\n")
+
+                    # Bookmark - optional
+                    if prompt.bookmark:
+                        f.write(f"bookmark: {prompt.bookmark}\n")
+                    else:
+                        f.write("# bookmark: feature-name\n")
+
+                    # These are auto-managed fields
+                    f.write(f"created_at: {prompt.created_at.isoformat()}\n")
+                    f.write(f"status: {prompt.status.value}\n")
+                    f.write(f"retry_count: {prompt.retry_count}\n")
+
+                    f.write("---\n\n")
+                    f.write(
+                        prompt.content
+                        if prompt.content
+                        else "# Write your prompt here\n"
+                    )
+            else:
+                # Normal mode - only write non-None/non-default fields
+                metadata = {
+                    "priority": prompt.priority,
+                    "working_directory": prompt.working_directory,
+                    "max_retries": prompt.max_retries,
+                    "created_at": prompt.created_at.isoformat(),
+                    "status": prompt.status.value,
+                    "retry_count": prompt.retry_count,
+                }
+
+                if prompt.context_files:
+                    metadata["context_files"] = prompt.context_files
+                if prompt.estimated_tokens:
+                    metadata["estimated_tokens"] = prompt.estimated_tokens
+                if prompt.last_executed:
+                    metadata["last_executed"] = prompt.last_executed.isoformat()
+                if prompt.permission_mode:
+                    metadata["permission_mode"] = prompt.permission_mode
+                if prompt.allowed_tools:
+                    metadata["allowed_tools"] = prompt.allowed_tools
+                if prompt.timeout is not None:  # 0 is valid
+                    metadata["timeout"] = prompt.timeout
+                if prompt.model:
+                    metadata["model"] = prompt.model
+                if prompt.bookmark:
+                    metadata["bookmark"] = prompt.bookmark
+
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write("---\n")
+                    yaml.dump(metadata, f, default_flow_style=False)
+                    f.write("---\n\n")
+                    f.write(prompt.content)
+
+                    if prompt.execution_log:
+                        f.write("\n\n## Execution Log\n\n")
+                        f.write("```\n")
+                        f.write(prompt.execution_log)
+                        f.write("```\n")
 
             return True
 
